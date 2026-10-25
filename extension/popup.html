@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PhishTank Threat Scanner</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 380px;
+      background: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+      margin-bottom: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+    }
+    .brand-text {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .brand-text span {
+      color: #818cf8;
+    }
+    .backend-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: #1e293b;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      border: 1px solid #334155;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .email-card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+    }
+    .email-card-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 4px;
+      letter-spacing: 0.05em;
+    }
+    .email-subject {
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .email-sender {
+      color: #94a3b8;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .scan-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s;
+    }
+    .scan-btn:hover {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      transform: translateY(-1px);
+    }
+    .scan-btn:active {
+      transform: translateY(0);
+    }
+    .scan-btn.scanning {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /* Result Section */
+    .result-section {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #1e293b;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .gauge-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .score-box {
+      width: 70px;
+      height: 70px;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid;
+    }
+    .score-num {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: monospace;
+      line-height: 1;
+    }
+    .score-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 700;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    .verdict-info {
+      flex: 1;
+      margin-left: 14px;
+    }
+    .verdict-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .malicious-theme {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+    .suspicious-theme {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+    .clean-theme {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+    .timing-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-family: monospace;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .rules-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .rule-chip {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .reasons-box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 11px;
+      color: #cbd5e1;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .reasons-box li {
+      margin-bottom: 4px;
+      margin-left: 14px;
+    }
+    .dashboard-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 8px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #818cf8;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .dashboard-link:hover {
+      background: #273549;
+      color: #a5b4fc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <div class="brand-text">Phish<span>Tank</span></div>
+    </div>
+    <div class="backend-pill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">SOC Connected</span>
+    </div>
+  </div>
+
+  <div class="email-card">
+    <div class="email-card-title">Active Email Context</div>
+    <div class="email-subject" id="previewSubject">Detecting active email...</div>
+    <div class="email-sender" id="previewSender">Looking for Gmail/Outlook headers...</div>
+  </div>
+
+  <button class="scan-btn" id="scanBtn">
+    <span>🛡️</span>
+    <span id="scanBtnText">Scan Current Email</span>
+  </button>
+
+  <div class="result-section" id="resultSection">
+    <div class="gauge-wrapper">
+      <div class="score-box" id="scoreBox">
+        <span class="score-num" id="scoreNum">0</span>
+        <span class="score-lbl">Score</span>
+      </div>
+      <div class="verdict-info">
+        <span class="verdict-badge" id="verdictBadge">CLEAN</span>
+        <div style="margin-top: 2px;">
+          <span class="timing-badge" id="timingBadge">⚡ 1ms</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rules-list" id="rulesList"></div>
+
+    <div class="reasons-box">
+      <ul id="reasonsUl" style="padding: 0; margin: 0;"></ul>
+    </div>
+  </div>
+
+  <a href="http://localhost:3000" target="_blank" class="dashboard-link">
+    <span>📊</span>
+    <span>Open Full SOC Dashboard</span>
+  </a>
+
+  <script src="popup.js"></script>
+</body>
+</html>

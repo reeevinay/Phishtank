@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishTank | Autonomous Email Threat Analysis & Incident Response</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    .pulse-glow-red {
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+    }
+    .pulse-glow-green {
+      box-shadow: 0 0 25px rgba(34, 197, 94, 0.35);
+    }
+    .pulse-glow-amber {
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
+    }
+    .pulse-glow-cyan {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-xl tracking-tight text-white">Phish<span class="text-indigo-400">Tank</span></span>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Async WAL</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Non-Blocking Threat Defense & Asynchronous Queue Triage</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <!-- Telemetry Pill -->
+        <div class="hidden md:flex items-center space-x-3 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs">
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-slate-300 font-mono" id="cacheTelemetry">Cache: Memory</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <div class="flex items-center space-x-1.5">
+            <span class="text-indigo-400 font-mono" id="queueTelemetry">Queue: 0 active</span>
+          </div>
+        </div>
+
+        <a href="/mock-webmail.html" target="_blank" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 text-xs font-medium transition-colors" title="Open Gmail DOM Simulator for Extension Testing">
+          <span>📧 Mock Webmail</span>
+        </a>
+
+        <button id="refreshBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="Refresh Incidents">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+    <!-- Top Grid: Drag-and-drop & Score Readout -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Upload Zone (5 cols) -->
+      <div class="lg:col-span-5 flex flex-col space-y-4">
+        <div class="glass-card rounded-2xl p-6 shadow-xl flex-1 flex flex-col justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-white flex items-center space-x-2 mb-2">
+              <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span>Email Ingestion & Async Triage</span>
+            </h2>
+            <p class="text-sm text-slate-400 mb-6">
+              Upload raw <code class="text-indigo-300 bg-slate-800 px-1 py-0.5 rounded text-xs">.eml</code> files. Ingested via disk streaming to protect RAM, enqueued asynchronously with <span class="text-cyan-400 font-mono">HTTP 202</span>, and deduplicated in <span class="text-cyan-400 font-mono">O(1)</span> time.
+            </p>
+
+            <!-- Drop Zone -->
+            <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 hover:bg-slate-800/40 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 group">
+              <input type="file" id="fileInput" accept=".eml,message/rfc822" class="hidden" />
+              <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 mx-auto flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-transform">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-slate-200">
+                <span class="text-indigo-400 group-hover:underline">Click to browse</span> or drag & drop .eml here
+              </p>
+              <p class="text-xs text-slate-500 mt-2">Streaming disk buffer up to 50MB per file</p>
+            </div>
+          </div>
+
+          <!-- Quick Samples & Actions -->
+          <div class="mt-6 pt-6 border-t border-slate-800/80">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">Quick Test Fixtures</span>
+            <div class="grid grid-cols-2 gap-3">
+              <button id="loadBenignBtn" class="flex items-center justify-center space-x-2 py-2 px-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 hover:bg-emerald-900/50 text-emerald-300 text-xs font-medium transition-colors">
+                <span>🛡️ Load Benign .eml</span>
+              </button>
+              <button id="loadPhishBtn" class="flex items-center justify-center space-x-2 py-2 px-3 rounded-lg bg-red-950/40 border border-red-800/50 hover:bg-red-900/50 text-red-300 text-xs font-medium transition-colors">
+                <span>⚠️ Load Spoof Phish .eml</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Threat Score & Analysis Readout (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col space-y-4">
+        <div id="readoutCard" class="glass-card rounded-2xl p-6 shadow-xl flex-1 flex flex-col justify-between relative overflow-hidden">
+
+          <!-- Idle State -->
+          <div id="idleState" class="my-auto py-12 text-center">
+            <div class="w-16 h-16 rounded-full bg-slate-800/60 border border-slate-700 flex items-center justify-center mx-auto mb-4 text-slate-500">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h3 class="text-base font-semibold text-slate-300">No Email Analyzed Yet</h3>
+            <p class="text-sm text-slate-500 max-w-sm mx-auto mt-1">
+              Upload an .eml email or select a sample fixture above to generate non-blocking async threat evaluation.
+            </p>
+          </div>
+
+          <!-- Asynchronous Processing State (HTTP 202 Polling) -->
+          <div id="loadingState" class="hidden my-auto py-16 text-center">
+            <div class="relative w-16 h-16 mx-auto mb-4">
+              <div class="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div class="absolute inset-0 flex items-center justify-center text-indigo-400">
+                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+            </div>
+            <div class="flex items-center justify-center space-x-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">HTTP 202 ACCEPTED</span>
+              <span id="pollingStatusBadge" class="text-xs text-slate-400 font-mono">Job Enqueued</span>
+            </div>
+            <h3 class="text-base font-semibold text-slate-200 mt-2">Processing in Background Worker Pool</h3>
+            <p id="pollingSubtext" class="text-xs text-slate-400 mt-1">Polling SQLite persistence layer every 1s...</p>
+          </div>
+
+          <!-- Active Analysis Result -->
+          <div id="resultState" class="hidden space-y-6">
+
+            <!-- Header Header with Verdict & Score -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-slate-800 gap-4">
+              <div class="flex items-center space-x-4">
+                <!-- Score Radial Meter -->
+                <div id="scoreBadgeContainer" class="relative w-20 h-20 rounded-2xl flex flex-col items-center justify-center border">
+                  <span id="scoreText" class="text-3xl font-bold font-mono">0</span>
+                  <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Score</span>
+                </div>
+
+                <div>
+                  <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <span id="verdictBadge" class="px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">CLEAN</span>
+                    <!-- Scalability Metrics Badge (Cache Hit & Processing Time) -->
+                    <span id="timingBadge" class="px-2.5 py-1 rounded-full text-xs font-mono font-semibold"></span>
+                    <span id="incidentId" class="text-xs text-slate-500 font-mono"></span>
+                  </div>
+                  <h3 id="subjectText" class="text-lg font-semibold text-white mt-1 line-clamp-1">Subject line</h3>
+                  <p id="senderText" class="text-xs text-slate-400 line-clamp-1"></p>
+                </div>
+              </div>
+
+              <div class="text-right sm:text-right w-full sm:w-auto">
+                <span class="text-[11px] text-slate-500 block">Analysis Timestamp</span>
+                <span id="timestampText" class="text-xs font-mono text-slate-300"></span>
+              </div>
+            </div>
+
+            <!-- Triggered Rules & Reasons -->
+            <div>
+              <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center space-x-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Triggered Security Rules</span>
+              </h4>
+              <div id="rulesContainer" class="flex flex-wrap gap-2 mb-3"></div>
+              <ul id="reasonsList" class="space-y-1.5 text-xs text-slate-300 bg-slate-900/60 p-3 rounded-xl border border-slate-800"></ul>
+            </div>
+
+            <!-- URLs and Attachments Detail Tabs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <!-- URLs -->
+              <div class="bg-slate-900/40 rounded-xl p-3 border border-slate-800/80">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Extracted URLs</span>
+                  <span id="urlCountBadge" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">0</span>
+                </div>
+                <div id="urlsList" class="space-y-1 max-h-28 overflow-y-auto font-mono text-[11px] text-slate-300"></div>
+              </div>
+
+              <!-- Attachments -->
+              <div class="bg-slate-900/40 rounded-xl p-3 border border-slate-800/80">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Attachments & Hashes</span>
+                  <span id="attachmentCountBadge" class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">0</span>
+                </div>
+                <div id="attachmentsList" class="space-y-1 max-h-28 overflow-y-auto font-mono text-[11px] text-slate-300"></div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Section: Live Incidents History Table -->
+    <div class="glass-card rounded-2xl p-6 shadow-xl">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white flex items-center space-x-2">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span>Live Incident Response Log</span>
+          </h2>
+          <p class="text-xs text-slate-400">Indexed SQLite records ordered by <code class="text-indigo-300">created_at DESC</code></p>
+        </div>
+
+        <div class="flex items-center space-x-3 w-full sm:w-auto">
+          <input type="text" id="filterInput" placeholder="Search by sender or subject..." class="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-full sm:w-64" />
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/90 text-slate-400 uppercase font-semibold border-b border-slate-800">
+            <tr>
+              <th class="py-3 px-4">Verdict & Score</th>
+              <th class="py-3 px-4">Sender</th>
+              <th class="py-3 px-4">Subject</th>
+              <th class="py-3 px-4">Performance / Rules</th>
+              <th class="py-3 px-4">Timestamp</th>
+              <th class="py-3 px-4 text-right">Details</th>
+            </tr>
+          </thead>
+          <tbody id="incidentsTableBody" class="divide-y divide-slate-800/60 font-medium">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-500">Loading incidents from SQLite...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal for Raw JSON Details -->
+  <div id="detailsModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[85vh]">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-semibold text-white">Incident Details & Forensics</h3>
+          <p id="modalIncidentId" class="text-xs font-mono text-indigo-400"></p>
+        </div>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto mt-4 pr-1">
+        <pre id="modalJsonContent" class="text-xs font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-300 whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-slate-800/60 py-4 bg-slate-950/80 text-center text-xs text-slate-500">
+    PhishTank Email Incident Response • Powered by TypeScript, Node.js, Express & Better-SQLite3
+  </footer>
+
+  <script>
+    // State
+    let incidents = [];
+    let currentPollingId = null;
+    let pollTimer = null;
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const idleState = document.getElementById('idleState');
+    const loadingState = document.getElementById('loadingState');
+    const resultState = document.getElementById('resultState');
+    const readoutCard = document.getElementById('readoutCard');
+    const scoreBadgeContainer = document.getElementById('scoreBadgeContainer');
+    const scoreText = document.getElementById('scoreText');
+    const verdictBadge = document.getElementById('verdictBadge');
+    const timingBadge = document.getElementById('timingBadge');
+    const incidentId = document.getElementById('incidentId');
+    const subjectText = document.getElementById('subjectText');
+    const senderText = document.getElementById('senderText');
+    const timestampText = document.getElementById('timestampText');
+    const rulesContainer = document.getElementById('rulesContainer');
+    const reasonsList = document.getElementById('reasonsList');
+    const urlsList = document.getElementById('urlsList');
+    const urlCountBadge = document.getElementById('urlCountBadge');
+    const attachmentsList = document.getElementById('attachmentsList');
+    const attachmentCountBadge = document.getElementById('attachmentCountBadge');
+    const incidentsTableBody = document.getElementById('incidentsTableBody');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const filterInput = document.getElementById('filterInput');
+    const loadBenignBtn = document.getElementById('loadBenignBtn');
+    const loadPhishBtn = document.getElementById('loadPhishBtn');
+    const detailsModal = document.getElementById('detailsModal');
+    const modalIncidentId = document.getElementById('modalIncidentId');
+    const modalJsonContent = document.getElementById('modalJsonContent');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cacheTelemetry = document.getElementById('cacheTelemetry');
+    const queueTelemetry = document.getElementById('queueTelemetry');
+    const pollingStatusBadge = document.getElementById('pollingStatusBadge');
+    const pollingSubtext = document.getElementById('pollingSubtext');
+
+    // Drag and drop event listeners
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-500/10');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+
+    refreshBtn.addEventListener('click', () => {
+      fetchIncidents();
+      fetchTelemetry();
+    });
+    filterInput.addEventListener('input', renderIncidentsTable);
+
+    closeModalBtn.addEventListener('click', () => detailsModal.classList.add('hidden'));
+    detailsModal.addEventListener('click', (e) => {
+      if (e.target === detailsModal) detailsModal.classList.add('hidden');
+    });
+
+    // Upload & Non-blocking Ingestion
+    async function handleFileUpload(file) {
+      if (!file) return;
+
+      if (pollTimer) clearInterval(pollTimer);
+
+      idleState.classList.add('hidden');
+      resultState.classList.add('hidden');
+      loadingState.classList.remove('hidden');
+      pollingStatusBadge.innerText = 'Uploading to stream buffer...';
+      pollingSubtext.innerText = 'Dispatching to asynchronous worker queue...';
+
+      const formData = new FormData();
+      formData.append('email', file);
+
+      try {
+        const response = await fetch('/api/v1/analyze', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        // Check for 202 ACCEPTED asynchronous response
+        if (response.status === 202 && data.id) {
+          currentPollingId = data.id;
+          pollingStatusBadge.innerText = `Job ID: ${data.id}`;
+          pollingSubtext.innerText = 'Queued in background. Polling for completion...';
+          fetchIncidents(); // Refresh table so PROCESSING row appears immediately
+          startPolling(data.id);
+        } else if (data.incident) {
+          // Direct synchronous fallback
+          renderAnalysisResult(data.incident);
+          fetchIncidents();
+          fetchTelemetry();
+        } else {
+          alert('Analysis Error: ' + (data.error || 'Failed to analyze email file'));
+          idleState.classList.remove('hidden');
+          loadingState.classList.add('hidden');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error analyzing email: ' + err.message);
+        idleState.classList.remove('hidden');
+        loadingState.classList.add('hidden');
+      }
+    }
+
+    // Poll GET /api/v1/incidents/:id every 1 second until complete
+    function startPolling(id) {
+      if (pollTimer) clearInterval(pollTimer);
+
+      let attempts = 0;
+      pollTimer = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/api/v1/incidents/${id}`);
+          if (!res.ok) return;
+
+          const data = await res.json();
+          if (data.success && data.incident) {
+            const inc = data.incident;
+
+            if (inc.verdict !== 'PROCESSING') {
+              clearInterval(pollTimer);
+              pollTimer = null;
+              renderAnalysisResult(inc);
+              fetchIncidents();
+              fetchTelemetry();
+            } else {
+              pollingSubtext.innerText = `Worker processing... (${attempts}s)`;
+            }
+          }
+        } catch (err) {
+          console.warn('Poll request error:', err);
+        }
+
+        // Safety timeout after 45 seconds
+        if (attempts > 45) {
+          clearInterval(pollTimer);
+          alert('Analysis is taking longer than expected. Check the incident response table below.');
+          fetchIncidents();
+        }
+      }, 1000);
+    }
+
+    // Render threat analysis readout
+    function renderAnalysisResult(item) {
+      loadingState.classList.add('hidden');
+      idleState.classList.add('hidden');
+      resultState.classList.remove('hidden');
+
+      scoreText.innerText = item.score;
+      verdictBadge.innerText = item.verdict;
+      incidentId.innerText = item.id;
+      subjectText.innerText = item.subject || '(No Subject)';
+      senderText.innerText = `From: ${item.sender || 'Unknown'}`;
+      timestampText.innerText = item.created_at || (item.date ? new Date(item.date).toLocaleString() : new Date().toLocaleString());
+
+      // Scalability Metrics Badge (Cache Hit vs Processing Time ms)
+      const details = item.details || {};
+      const isCached = Boolean(details.cached);
+      const procTime = details.processingTimeMs || 1;
+
+      if (isCached) {
+        timingBadge.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+        timingBadge.innerHTML = `⚡ Cache Hit (${procTime}ms)`;
+      } else {
+        timingBadge.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
+        timingBadge.innerHTML = `⏱️ Proc Time: ${procTime}ms`;
+      }
+
+      // Style verdict badge & container
+      readoutCard.classList.remove('pulse-glow-red', 'pulse-glow-amber', 'pulse-glow-green', 'pulse-glow-cyan');
+      if (item.verdict === 'MALICIOUS') {
+        readoutCard.classList.add('pulse-glow-red');
+        scoreBadgeContainer.className = 'relative w-20 h-20 rounded-2xl flex flex-col items-center justify-center border bg-red-950/40 border-red-500/50 text-red-400';
+        verdictBadge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-red-500/20 text-red-400 border border-red-500/40';
+      } else if (item.verdict === 'SUSPICIOUS') {
+        readoutCard.classList.add('pulse-glow-amber');
+        scoreBadgeContainer.className = 'relative w-20 h-20 rounded-2xl flex flex-col items-center justify-center border bg-amber-950/40 border-amber-500/50 text-amber-400';
+        verdictBadge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-amber-500/20 text-amber-400 border border-amber-500/40';
+      } else {
+        readoutCard.classList.add('pulse-glow-green');
+        scoreBadgeContainer.className = 'relative w-20 h-20 rounded-2xl flex flex-col items-center justify-center border bg-emerald-950/40 border-emerald-500/50 text-emerald-400';
+        verdictBadge.className = 'px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+      }
+
+      // Rules badges
+      const rules = item.triggeredRules || (details && details.triggeredRules) || [];
+      if (rules.length === 0) {
+        rulesContainer.innerHTML = '<span class="text-xs px-2.5 py-1 rounded-md bg-emerald-950/50 text-emerald-300 border border-emerald-800">ALL_CHECKS_PASSED</span>';
+      } else {
+        rulesContainer.innerHTML = rules.map(r => `
+          <span class="text-xs px-2.5 py-1 rounded-md font-mono bg-red-950/60 text-red-300 border border-red-800 font-semibold">${r}</span>
+        `).join('');
+      }
+
+      // Reasons list
+      const reasons = item.reasons || (details && details.reasons) || [];
+      if (reasons.length === 0) {
+        reasonsList.innerHTML = '<li class="text-slate-400">✓ No authentication failures or malicious heuristics detected.</li>';
+      } else {
+        reasonsList.innerHTML = reasons.map(reason => `
+          <li class="flex items-start space-x-2">
+            <span class="text-red-400 font-bold">•</span>
+            <span>${reason}</span>
+          </li>
+        `).join('');
+      }
+
+      // URLs list
+      const urls = item.urls || (details && details.urls) || [];
+      urlCountBadge.innerText = urls.length;
+      if (urls.length === 0) {
+        urlsList.innerHTML = '<span class="text-slate-500">None extracted</span>';
+      } else {
+        urlsList.innerHTML = urls.map(u => `
+          <div class="truncate hover:text-indigo-300 transition-colors" title="${u}">🔗 ${u}</div>
+        `).join('');
+      }
+
+      // Attachments list
+      const atts = item.attachmentDetails || [];
+      const hashes = item.fileHashes || (details && details.fileHashes) || [];
+      attachmentCountBadge.innerText = atts.length || hashes.length;
+
+      if (atts.length === 0 && hashes.length === 0) {
+        attachmentsList.innerHTML = '<span class="text-slate-500">None attached</span>';
+      } else if (atts.length > 0) {
+        attachmentsList.innerHTML = atts.map(a => `
+          <div class="p-1 rounded bg-slate-800/40 mb-1 border ${a.dangerous ? 'border-red-600/50 text-red-300' : 'border-slate-700 text-slate-300'}">
+            <div class="flex items-center justify-between font-sans">
+              <span class="font-semibold truncate">${a.dangerous ? '⚠️ ' : '📎 '}${a.filename}</span>
+              <span class="text-[10px] text-slate-400">(${(a.size / 1024).toFixed(1)} KB)${a.cached ? ' [Cached]' : ''}</span>
+            </div>
+            <div class="text-[9px] text-slate-400 truncate mt-0.5">SHA-256: ${a.hash}</div>
+          </div>
+        `).join('');
+      } else {
+        attachmentsList.innerHTML = hashes.map(h => `
+          <div class="truncate text-[10px] text-slate-400">SHA-256: ${h}</div>
+        `).join('');
+      }
+    }
+
+    // Fetch and populate incidents list
+    async function fetchIncidents() {
+      try {
+        const res = await fetch('/api/v1/incidents?limit=25');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.incidents)) {
+          incidents = data.incidents;
+          renderIncidentsTable();
+        }
+      } catch (err) {
+        console.error('Error fetching incidents:', err);
+      }
+    }
+
+    function renderIncidentsTable() {
+      const filter = (filterInput.value || '').toLowerCase();
+      const filtered = incidents.filter(i =>
+        (i.sender || '').toLowerCase().includes(filter) ||
+        (i.subject || '').toLowerCase().includes(filter) ||
+        (i.verdict || '').toLowerCase().includes(filter)
+      );
+
+      if (filtered.length === 0) {
+        incidentsTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-6 text-center text-slate-500">No incident records match the filter.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      incidentsTableBody.innerHTML = filtered.map(item => {
+        let verdictBadgeStyle = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        if (item.verdict === 'MALICIOUS') {
+          verdictBadgeStyle = 'bg-red-500/20 text-red-400 border border-red-500/30';
+        } else if (item.verdict === 'SUSPICIOUS') {
+          verdictBadgeStyle = 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        } else if (item.verdict === 'PROCESSING') {
+          verdictBadgeStyle = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 animate-pulse';
+        }
+
+        const details = item.details || {};
+        const isCached = Boolean(details.cached);
+        const procTime = details.processingTimeMs;
+
+        let perfBadge = '';
+        if (item.verdict === 'PROCESSING') {
+          perfBadge = '<span class="text-indigo-400 text-[10px] font-mono">⏳ In Queue...</span>';
+        } else if (isCached) {
+          perfBadge = `<span class="px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800 text-cyan-300 text-[10px] font-mono mr-1">⚡ Cached (${procTime}ms)</span>`;
+        } else if (procTime) {
+          perfBadge = `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono mr-1">⏱️ ${procTime}ms</span>`;
+        }
+
+        const rules = details.triggeredRules || [];
+        const rulesDisplay = rules.length > 0
+          ? rules.slice(0, 2).map(r => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px] mr-1">${r}</span>`).join('') + (rules.length > 2 ? `<span class="text-slate-500 text-[10px]">+${rules.length - 2}</span>` : '')
+          : (item.verdict === 'PROCESSING' ? '' : '<span class="text-slate-500 text-[10px]">None</span>');
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition-colors">
+            <td class="py-3 px-4">
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${verdictBadgeStyle}">${item.verdict}</span>
+                <span class="font-mono text-slate-300 font-semibold">${item.verdict === 'PROCESSING' ? '--' : item.score}/100</span>
+              </div>
+            </td>
+            <td class="py-3 px-4 max-w-[180px] truncate text-slate-300" title="${item.sender}">${item.sender || 'Unknown'}</td>
+            <td class="py-3 px-4 max-w-[220px] truncate text-slate-200" title="${item.subject}">${item.subject || '(No Subject)'}</td>
+            <td class="py-3 px-4">${perfBadge} ${rulesDisplay}</td>
+            <td class="py-3 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap">${item.created_at || 'Just now'}</td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="openModal('${item.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-400 text-xs transition-colors">
+                View
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Modal detail viewer
+    window.openModal = function(id) {
+      const item = incidents.find(i => i.id === id);
+      if (!item) return;
+
+      modalIncidentId.innerText = item.id;
+      modalJsonContent.innerText = JSON.stringify(item, null, 2);
+      detailsModal.classList.remove('hidden');
+    };
+
+    // Telemetry Poller
+    async function fetchTelemetry() {
+      try {
+        const res = await fetch('/api/v1/metrics');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.cache) {
+          const ratio = Math.round(data.cache.hitRatio * 100);
+          cacheTelemetry.innerText = `Cache: ${data.cache.backend.toUpperCase()} (${ratio}% hit)`;
+        }
+        if (data.queue) {
+          queueTelemetry.innerText = `Queue: ${data.queue.active} active / ${data.queue.queued} queued`;
+        }
+      } catch {
+        // Ignore telemetry errors
+      }
+    }
+
+    // Quick Test Sample Buttons
+    loadBenignBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/test-samples/benign.eml');
+        if (!res.ok) throw new Error('Failed to load sample fixture');
+        const blob = await res.blob();
+        const file = new File([blob], 'benign.eml', { type: 'message/rfc822' });
+        handleFileUpload(file);
+      } catch (err) {
+        alert('Could not load test-samples/benign.eml: ' + err.message);
+      }
+    });
+
+    loadPhishBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/test-samples/phish-spoof.eml');
+        if (!res.ok) throw new Error('Failed to load sample fixture');
+        const blob = await res.blob();
+        const file = new File([blob], 'phish-spoof.eml', { type: 'message/rfc822' });
+        handleFileUpload(file);
+      } catch (err) {
+        alert('Could not load test-samples/phish-spoof.eml: ' + err.message);
+      }
+    });
+
+    // Initial load
+    fetchIncidents();
+    fetchTelemetry();
+    setInterval(fetchTelemetry, 3000);
+  </script>
+</body>
+</html>

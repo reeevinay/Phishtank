@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inbox - Mock Webmail (PhishTank Extension Test Harness)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+      background: #f6f8fc;
+      color: #202124;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Google-style Bar */
+    header {
+      background: #ffffff;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e0e0e0;
+      height: 56px;
+    }
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 240px;
+    }
+    .hamburger {
+      font-size: 20px;
+      cursor: pointer;
+      color: #5f6368;
+    }
+    .gmail-logo {
+      font-size: 20px;
+      font-weight: 500;
+      color: #444746;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .gmail-logo span {
+      color: #ea4335;
+      font-weight: 700;
+    }
+    .search-box {
+      flex: 1;
+      max-width: 720px;
+      background: #eaf1fb;
+      border-radius: 24px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      color: #444746;
+    }
+
+    /* Test Environment Notice Banner */
+    .test-harness-bar {
+      background: linear-gradient(90deg, #1e1b4b, #312e81);
+      color: #e0e7ff;
+      padding: 10px 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .test-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .test-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .test-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    .test-btn.active {
+      background: #4f46e5;
+      border-color: #818cf8;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+    }
+
+    /* App Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 256px;
+      padding: 12px 8px;
+      background: #ffffff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .compose-btn {
+      background: #c2e7ff;
+      color: #001d35;
+      padding: 16px 24px;
+      border-radius: 16px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      width: 140px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      color: #444746;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .nav-item.active {
+      background: #d3e3fd;
+      color: #041e49;
+      font-weight: 700;
+    }
+
+    /* Main Email Viewing Pane */
+    .main-pane {
+      flex: 1;
+      background: #ffffff;
+      margin: 12px 16px 12px 0;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* Email Action Toolbar */
+    .email-toolbar {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+      color: #5f6368;
+    }
+    .toolbar-icon {
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+    }
+    .toolbar-icon:hover {
+      background: #f1f3f4;
+    }
+
+    /* Email Content View */
+    .email-content {
+      padding: 24px 32px;
+      flex: 1;
+    }
+
+    /* Exact Gmail CSS Classes targeted by content.js */
+    h2.hP {
+      font-size: 22px;
+      font-weight: 400;
+      color: #1f1f1f;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sender-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .sender-details {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e8eaed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: #5f6368;
+    }
+    .sender-info {
+      font-size: 14px;
+    }
+    span.gD {
+      font-weight: 700;
+      color: #1f1f1f;
+    }
+    .recipient-text {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 2px;
+    }
+    .email-date {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    /* Exact Gmail Body Class */
+    div.a3s {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #202124;
+      margin-top: 16px;
+      padding-top: 8px;
+    }
+    div.a3s a {
+      color: #0b57d0;
+      text-decoration: underline;
+    }
+
+    /* Attachment Section */
+    .attachments-container {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #f1f3f4;
+    }
+    .attachments-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #444746;
+      margin-bottom: 12px;
+    }
+    .attachment-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: #f8fafd;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .attachment-card:hover {
+      background: #f1f3f4;
+      border-color: #c0c0c0;
+    }
+    span.aV3 {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1f1f1f;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mock Top Bar -->
+  <header>
+    <div class="logo-section">
+      <div class="hamburger">☰</div>
+      <div class="gmail-logo"><span>M</span>ail <span style="color:#5f6368; font-weight:400; font-size:12px;">Webmail Simulator</span></div>
+    </div>
+    <div class="search-box">
+      <span>🔍</span> Search mail
+    </div>
+    <div style="width: 40px; height: 40px; border-radius: 50%; background:#4f46e5; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+      V
+    </div>
+  </header>
+
+  <!-- Interactive Test Harness Banner -->
+  <div class="test-harness-bar">
+    <div style="display:flex; align-items:center; gap: 8px;">
+      <span style="font-size: 18px;">🧪</span>
+      <span><strong>PhishTank Test Harness:</strong> Gmail DOM Simulation for Firefox Extension Testing</span>
+    </div>
+    <div class="test-actions">
+      <button class="test-btn active" id="btnPhish" onclick="loadPhishSample()">
+        ⚠️ Load Spear-Phishing Sample (CEO Spoof)
+      </button>
+      <button class="test-btn" id="btnClean" onclick="loadCleanSample()">
+        🛡️ Load Benign Sample (Clean Alert)
+      </button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Left Navigation -->
+    <div class="sidebar">
+      <button class="compose-btn">✏️ Compose</button>
+      <div class="nav-item active">📥 Inbox <span style="font-size:12px; font-weight:700;">1</span></div>
+      <div class="nav-item">⭐ Starred</div>
+      <div class="nav-item">🕒 Snoozed</div>
+      <div class="nav-item">📤 Sent</div>
+      <div class="nav-item">📝 Drafts</div>
+      <div class="nav-item">⚠️ Spam</div>
+      <div class="nav-item">🗑️ Trash</div>
+    </div>
+
+    <!-- Email Reader Container -->
+    <div class="main-pane">
+
+      <!-- Action Toolbar -->
+      <div class="email-toolbar" id="emailToolbar">
+        <div class="toolbar-icon" title="Back to Inbox">←</div>
+        <div class="toolbar-icon" title="Report spam">⚠️</div>
+        <div class="toolbar-icon" title="Delete">🗑️</div>
+        <div class="toolbar-icon" title="Mark unread">✉️</div>
+        <div class="toolbar-icon" title="Move to">📁</div>
+        <!-- PhishTank content script automatically injects the 'Scan with PhishTank' button here! -->
+      </div>
+
+      <div class="email-content">
+        <!-- Subject Line (targeted by h2.hP) -->
+        <h2 class="hP" id="mockSubject">
+          URGENT: Immediate Wire Transfer Confirmation Required & Updated Banking Portal
+        </h2>
+
+        <!-- Sender Header (targeted by span.gD) -->
+        <div class="sender-row">
+          <div class="sender-details">
+            <div class="avatar" id="mockAvatar">CN</div>
+            <div class="sender-info">
+              <div>
+                <span class="gD" id="mockSender" email="ceo.office.urgent2026@gmail.com" name="CEO Satya Nadella">
+                  CEO Satya Nadella &lt;ceo.office.urgent2026@gmail.com&gt;
+                </span>
+              </div>
+              <div class="recipient-text">to: finance.payroll@company.com</div>
+            </div>
+          </div>
+          <div class="email-date" id="mockDate">Today, 11:42 AM</div>
+        </div>
+
+        <!-- Hidden Authentication Headers & Reply-To (scraped by content.js) -->
+        <div id="rawHeaders"
+             style="display:none;"
+             data-raw-headers="Authentication-Results: mx.company.com; spf=softfail; dkim=fail; dmarc=fail"
+             data-reply-to="wire.collector@darknet-c2.net">
+        </div>
+
+        <!-- Email Body (targeted by div.a3s) -->
+        <div class="a3s aXjCH" id="mockBody">
+          <p>Urgent Attention Finance Department,</p>
+          <br>
+          <p>We are closing an emergency confidential corporate acquisition today.</p>
+          <p>Please re-authenticate your Microsoft 365 executive credentials immediately through our secure single sign-on verification portal:</p>
+          <p>
+            <a href="https://micros0ft.com/login/auth-portal?token=893247" target="_blank">
+              https://micros0ft.com/login/auth-portal?token=893247
+            </a>
+          </p>
+          <br>
+          <p>Additionally, execute the attached Q3 wire verification instructions script on your workstation to finalize authorization:</p>
+          <p><em>Attachment: Wire_Transfer_Order.vbs</em></p>
+          <br>
+          <p>Do NOT discuss this with anyone outside the executive loop until completion.</p>
+          <br>
+          <p>Regards,<br><strong>CEO Satya Nadella</strong></p>
+        </div>
+
+        <!-- Attachments Section (targeted by span.aV3) -->
+        <div class="attachments-container" id="mockAttachmentsContainer">
+          <div class="attachments-title">1 Attachment</div>
+          <div class="attachment-card" id="mockAttachmentCard">
+            <span style="font-size: 18px;">📄</span>
+            <div>
+              <span class="aV3" id="mockAttachmentName">Wire_Transfer_Order.vbs</span>
+              <div style="font-size: 11px; color:#5f6368;">127 B • Visual Basic Dropper Script</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Sample Switcher Functions for Easy Testing
+    function loadPhishSample() {
+      document.getElementById('btnPhish').classList.add('active');
+      document.getElementById('btnClean').classList.remove('active');
+
+      document.getElementById('mockSubject').innerText = 'URGENT: Immediate Wire Transfer Confirmation Required & Updated Banking Portal';
+      document.getElementById('mockAvatar').innerText = 'CN';
+      
+      const sender = document.getElementById('mockSender');
+      sender.setAttribute('email', 'ceo.office.urgent2026@gmail.com');
+      sender.setAttribute('name', 'CEO Satya Nadella');
+      sender.innerHTML = 'CEO Satya Nadella &lt;ceo.office.urgent2026@gmail.com&gt;';
+
+      const headers = document.getElementById('rawHeaders');
+      headers.setAttribute('data-raw-headers', 'Authentication-Results: mx.company.com; spf=softfail; dkim=fail; dmarc=fail');
+      headers.setAttribute('data-reply-to', 'wire.collector@darknet-c2.net');
+
+      document.getElementById('mockBody').innerHTML = `
+        <p>Urgent Attention Finance Department,</p>
+        <br>
+        <p>We are closing an emergency confidential corporate acquisition today.</p>
+        <p>Please re-authenticate your Microsoft 365 executive credentials immediately through our secure single sign-on verification portal:</p>
+        <p>
+          <a href="https://micros0ft.com/login/auth-portal?token=893247" target="_blank">
+            https://micros0ft.com/login/auth-portal?token=893247
+          </a>
+        </p>
+        <br>
+        <p>Additionally, execute the attached Q3 wire verification instructions script on your workstation to finalize authorization:</p>
+        <p><em>Attachment: Wire_Transfer_Order.vbs</em></p>
+        <br>
+        <p>Do NOT discuss this with anyone outside the executive loop until completion.</p>
+        <br>
+        <p>Regards,<br><strong>CEO Satya Nadella</strong></p>
+      `;
+
+      document.getElementById('mockAttachmentsContainer').style.display = 'block';
+      document.getElementById('mockAttachmentName').innerText = 'Wire_Transfer_Order.vbs';
+
+      // Remove existing banner on switch
+      const b = document.getElementById('phishtankSecurityBanner');
+      if (b) b.remove();
+    }
+
+    function loadCleanSample() {
+      document.getElementById('btnClean').classList.add('active');
+      document.getElementById('btnPhish').classList.remove('active');
+
+      document.getElementById('mockSubject').innerText = 'Clean Build: Security patch applied to repository';
+      document.getElementById('mockAvatar').innerText = 'GH';
+
+      const sender = document.getElementById('mockSender');
+      sender.setAttribute('email', 'notifications@github.com');
+      sender.setAttribute('name', 'GitHub Notifications');
+      sender.innerHTML = 'GitHub Notifications &lt;notifications@github.com&gt;';
+
+      const headers = document.getElementById('rawHeaders');
+      headers.setAttribute('data-raw-headers', 'Authentication-Results: mx.google.com; spf=pass; dkim=pass; dmarc=pass');
+      headers.setAttribute('data-reply-to', 'notifications@github.com');
+
+      document.getElementById('mockBody').innerHTML = `
+        <p>Hello Security Team,</p>
+        <br>
+        <p>This automated notice confirms that Dependabot has successfully patched dependencies in your main branch.</p>
+        <p>You can review the updated commit and security advisory here:</p>
+        <p>
+          <a href="https://github.com/organization/project/pull/142" target="_blank">
+            https://github.com/organization/project/pull/142
+          </a>
+        </p>
+        <br>
+        <p>All automated builds and integration test suites passed without warning.</p>
+        <br>
+        <p>Best regards,<br><strong>GitHub Security Operations</strong></p>
+      `;
+
+      document.getElementById('mockAttachmentsContainer').style.display = 'none';
+
+      // Remove existing banner on switch
+      const b = document.getElementById('phishtankSecurityBanner');
+      if (b) b.remove();
+    }
+  </script>
+</body>
+</html>

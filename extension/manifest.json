@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "PhishTank Email Threat Scanner",
+  "version": "1.0.0",
+  "description": "One-click autonomous email threat analysis for Gmail and Outlook Web.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "phishtank-scanner@phishtank.local"
+    }
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "*://mail.google.com/*",
+    "*://outlook.live.com/*",
+    "*://outlook.office.com/*",
+    "*://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Scan Email with PhishTank",
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://mail.google.com/*",
+        "*://outlook.live.com/*",
+        "*://outlook.office.com/*",
+        "*://localhost/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  }
+}

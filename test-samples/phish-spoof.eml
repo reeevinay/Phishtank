@@ -1,0 +1,38 @@
+From: "CEO Satya Nadella" <ceo.office.urgent2026@gmail.com>
+To: "Finance Team" <finance.payroll@company.com>
+Reply-To: "Executive Wire Services" <wire.collector@darknet-c2.net>
+Subject: URGENT: Immediate Wire Transfer Confirmation Required & Updated Banking Portal
+Date: Sun, 25 Oct 2026 11:42:00 +0000
+Message-ID: <phish-spoof-attack-2026@c2-spoof.top>
+Authentication-Results: mx.company.com; spf=softfail (protection.outlook.com: 209.85.220.41 is neither permitted nor denied) smtp.mailfrom=gmail.com; dkim=fail (bad signature) header.d=gmail.com; dmarc=fail (p=QUARANTINE action=quarantine) header.from=gmail.com
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_Part_99812_43829104.1698234820"
+
+------=_Part_99812_43829104.1698234820
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+Urgent Attention Finance Department,
+
+We are closing an emergency confidential acquisition today.
+Please re-authenticate your Microsoft 365 credentials immediately using our secure portal:
+https://micros0ft.com/login/auth-portal?token=893247
+
+Also execute the attached Q3 wire verification instructions script on your workstation:
+Attachment: Wire_Transfer_Order.vbs
+
+Do NOT discuss this with anyone outside the executive loop.
+
+Regards,
+CEO Satya Nadella
+
+------=_Part_99812_43829104.1698234820
+Content-Type: application/x-vbs; name="Wire_Transfer_Order.vbs"
+Content-Disposition: attachment; filename="Wire_Transfer_Order.vbs"
+Content-Transfer-Encoding: base64
+
+JyBWQlNjcmlwdCBtYWxpY2lvdXMgZHJvcHBlciBzaW11bGF0aW9uClNldCBzaGVsbCA9IENy
+ZWF0ZU9iamVjdCgiV1NjcmlwdC5TaGVsbCIpCldTY3JpcHQuRWNobyAiUGF5bG9hZCBleGVj
+dXRlZCBzdWNjZXNzZnVsbHkiCg==
+
+------=_Part_99812_43829104.1698234820--

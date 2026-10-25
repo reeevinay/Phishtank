@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # In-Memory & Distributed Cache
+  redis:
+    image: redis:7-alpine
+    container_name: phishtank-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # PhishTank Scalable Threat Analyzer & API Server
+  phishtank-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phishtank-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - QUEUE_CONCURRENCY=5
+      - DB_PATH=/app/data/phishtank.db
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - sqlite_data:/app/data
+      - uploads_data:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  sqlite_data:
+    driver: local
+  uploads_data:
+    driver: local
