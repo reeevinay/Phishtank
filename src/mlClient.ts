@@ -65,10 +65,11 @@ const ML_ENGINE_URL =
 export async function callMlEngine(payload: MLInferRequest): Promise<MLInferResponse> {
   try {
     const res = await axios.post<MLInferResponse>(`${ML_ENGINE_URL}/v1/infer`, payload, {
-      timeout: 3500
+      timeout: 8000
     });
     return res.data;
-  } catch {
+  } catch (err) {
+    console.warn(`⚠️ ML Engine unreachable at ${ML_ENGINE_URL}, using local fallback:`, err instanceof Error ? err.message : err);
     return localFallbackFusion(payload);
   }
 }

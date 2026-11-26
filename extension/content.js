@@ -70,7 +70,11 @@
       document.querySelector('div.rps_') ||
       document.querySelector('.email-body');
 
+    let bodyText = '';
+    let bodyHtml = '';
     if (bodyEl) {
+      bodyText = (bodyEl.innerText || '').trim().slice(0, 8000);
+      bodyHtml = (bodyEl.innerHTML || '').trim().slice(0, 12000);
       const links = bodyEl.querySelectorAll('a[href]');
       links.forEach((a) => {
         const href = a.getAttribute('href');
@@ -120,6 +124,8 @@
       senderEmail: senderEmail || '',
       replyTo,
       subject: subject || 'No Subject',
+      bodyText,
+      bodyHtml,
       urls: Array.from(urls),
       attachments,
       rawHeaders
