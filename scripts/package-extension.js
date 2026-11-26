@@ -39,7 +39,7 @@ try {
     "    print('Archive entries:', zf.namelist())"
   ].join('\n');
 
-  execSync(`python -c "${pyScript.replace(/"/g, '\\"')}"`, { stdio: 'inherit' });
+  execSync('python -', { input: pyScript, stdio: ['pipe', 'inherit', 'inherit'] });
 
   const stats = fs.statSync(zipFile);
   console.log(`\n🎉 Successfully packaged extension!`);
