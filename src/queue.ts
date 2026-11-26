@@ -1,4 +1,7 @@
 import fs from 'fs';
+import { EventEmitter } from 'events';
+import { Queue, Worker, Job } from 'bullmq';
+import Redis from 'ioredis';
 import { analyzeEmail } from './analyzer';
 import { saveIncident } from './db';
 
@@ -7,14 +10,76 @@ export interface AnalysisJob {
   filePath: string;
   originalName?: string;
   enqueuedAt: number;
+  tenantId?: string;
 }
 
 export interface QueueStats {
+  mode: 'bullmq' | 'memory';
   queued: number;
   active: number;
   concurrency: number;
   completedTotal: number;
   failedTotal: number;
+}
+
+export const incidentEvents = new EventEmitter();
+
+async function processJobPayload(job: AnalysisJob): Promise<{ verdict: string; score: number }> {
+  const queueWaitMs = Date.now() - job.enqueuedAt;
+  try {
+    const emlBuffer = await fs.promises.readFile(job.filePath);
+    const analysis = await analyzeEmail(emlBuffer, job.id);
+
+    await saveIncident({
+      id: analysis.id,
+      tenant_id: job.tenantId || 'default',
+      sender: analysis.sender,
+      subject: analysis.subject,
+      score: analysis.score,
+      belief_low: analysis.belief_low,
+      plausibility_high: analysis.plausibility_high,
+      epistemic_uncertainty: analysis.epistemic_uncertainty,
+      conflict_k: analysis.conflict_k,
+      verdict: analysis.verdict,
+      campaign_id: analysis.campaign_id,
+      embedding: analysis.embedding,
+      details: {
+        ...analysis.details,
+        queueWaitMs
+      }
+    });
+
+    incidentEvents.emit('incident:completed', {
+      id: analysis.id,
+      verdict: analysis.verdict,
+      score: analysis.score,
+      campaign_id: analysis.campaign_id
+    });
+
+    return { verdict: analysis.verdict, score: analysis.score };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error during job execution';
+    await saveIncident({
+      id: job.id,
+      tenant_id: job.tenantId || 'default',
+      score: 0,
+      verdict: 'CLEAN',
+      details: {
+        status: 'FAILED',
+        error: message,
+        message: 'Error occurred during asynchronous email parsing and analysis.'
+      }
+    });
+    throw error;
+  } finally {
+    try {
+      if (fs.existsSync(job.filePath)) {
+        await fs.promises.unlink(job.filePath);
+      }
+    } catch {
+      // ignore cleanup error
+    }
+  }
 }
 
 export class AnalysisQueue {
@@ -23,34 +88,73 @@ export class AnalysisQueue {
   private concurrency: number;
   private completedTotal: number = 0;
   private failedTotal: number = 0;
+  private bullQueue: Queue<AnalysisJob> | null = null;
+  private bullWorker: Worker<AnalysisJob> | null = null;
 
-  constructor(concurrency?: number) {
+  constructor(concurrency?: number, startWorker: boolean = true) {
     const envConcurrency = parseInt(process.env.QUEUE_CONCURRENCY || '5', 10);
     this.concurrency = concurrency || (isNaN(envConcurrency) ? 5 : envConcurrency);
-    console.log(`🚀 Analysis Queue initialized with concurrency = ${this.concurrency}`);
+
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+      const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+      this.bullQueue = new Queue<AnalysisJob>('phishtank-analysis', {
+        connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          removeOnComplete: 500,
+          removeOnFail: 200
+        }
+      });
+
+      if (startWorker) {
+        this.startBullWorker(redisUrl);
+      }
+      console.log(`🚀 Distributed BullMQ Queue initialized (concurrency=${this.concurrency})`);
+    } else {
+      console.log(`🚀 In-Memory Analysis Queue initialized (concurrency=${this.concurrency})`);
+    }
   }
 
-  /**
-   * Enqueues an email analysis job and immediately triggers worker processing.
-   */
-  enqueue(job: AnalysisJob): void {
+  public startBullWorker(redisUrl: string): void {
+    if (this.bullWorker) return;
+    const workerConn = new Redis(redisUrl, { maxRetriesPerRequest: null });
+    this.bullWorker = new Worker<AnalysisJob>(
+      'phishtank-analysis',
+      async (job: Job<AnalysisJob>) => {
+        const res = await processJobPayload(job.data);
+        this.completedTotal++;
+        return res;
+      },
+      { connection: workerConn, concurrency: this.concurrency }
+    );
+    this.bullWorker.on('failed', () => {
+      this.failedTotal++;
+    });
+  }
+
+  async enqueue(job: AnalysisJob): Promise<void> {
+    if (this.bullQueue) {
+      await this.bullQueue.add('analyze-eml', job, { jobId: job.id });
+      return;
+    }
     this.queue.push(job);
-    // Asynchronously kick off processing without blocking the caller
     setImmediate(() => this.processNext());
   }
 
-  /**
-   * Dispatches pending jobs to available workers up to the concurrency limit.
-   */
   private processNext(): void {
     while (this.activeWorkers < this.concurrency && this.queue.length > 0) {
       const job = this.queue.shift();
       if (!job) break;
 
       this.activeWorkers++;
-      this.executeJob(job)
-        .catch((err) => {
-          console.error(`❌ Unexpected error processing job ${job.id}:`, err);
+      processJobPayload(job)
+        .then(() => {
+          this.completedTotal++;
+        })
+        .catch(() => {
+          this.failedTotal++;
         })
         .finally(() => {
           this.activeWorkers--;
@@ -59,73 +163,9 @@ export class AnalysisQueue {
     }
   }
 
-  /**
-   * Executes a single analysis job:
-   * 1. Reads raw .eml from disk
-   * 2. Runs threat analyzer (utilizing Redis/in-memory cache)
-   * 3. Persists final score, verdict, and rules into SQLite
-   * 4. Deletes the temporary file from disk in finally block
-   */
-  private async executeJob(job: AnalysisJob): Promise<void> {
-    const queueWaitMs = Date.now() - job.enqueuedAt;
-    console.log(`[Queue] Processing job ${job.id} (Waited in queue: ${queueWaitMs}ms)`);
-
-    try {
-      // 1. Read EML buffer from disk
-      const emlBuffer = await fs.promises.readFile(job.filePath);
-
-      // 2. Run threat analysis
-      const analysis = await analyzeEmail(emlBuffer, job.id);
-
-      // 3. Persist final incident status in SQLite
-      saveIncident({
-        id: analysis.id,
-        sender: analysis.sender,
-        subject: analysis.subject,
-        score: analysis.score,
-        verdict: analysis.verdict,
-        details: {
-          ...analysis.details,
-          queueWaitMs
-        }
-      });
-
-      this.completedTotal++;
-      console.log(`[Queue] ✓ Finished job ${job.id} -> Verdict: [${analysis.verdict}] Score: ${analysis.score}/100 (Took: ${analysis.details.processingTimeMs}ms)`);
-    } catch (error: unknown) {
-      this.failedTotal++;
-      const message = error instanceof Error ? error.message : 'Unknown error during job execution';
-      console.error(`[Queue] ❌ Failed job ${job.id}:`, message);
-
-      // Ensure the record is not stuck in PROCESSING
-      saveIncident({
-        id: job.id,
-        score: 0,
-        verdict: 'CLEAN',
-        details: {
-          status: 'FAILED',
-          error: message,
-          message: 'Error occurred during asynchronous email parsing and analysis.'
-        }
-      });
-    } finally {
-      // 4. Auto-delete temporary .eml file from disk
-      try {
-        if (fs.existsSync(job.filePath)) {
-          await fs.promises.unlink(job.filePath);
-          console.log(`[Queue] 🗑️  Cleaned up temp upload file: ${job.filePath}`);
-        }
-      } catch (cleanupErr) {
-        console.warn(`[Queue] Could not delete temp file ${job.filePath}:`, cleanupErr);
-      }
-    }
-  }
-
-  /**
-   * Returns real-time queue performance and capacity stats.
-   */
   getStats(): QueueStats {
     return {
+      mode: this.bullQueue ? 'bullmq' : 'memory',
       queued: this.queue.length,
       active: this.activeWorkers,
       concurrency: this.concurrency,
@@ -135,5 +175,6 @@ export class AnalysisQueue {
   }
 }
 
-export const analysisQueue = new AnalysisQueue();
+const isApiOnly = process.env.ROLE === 'api';
+export const analysisQueue = new AnalysisQueue(undefined, !isApiOnly);
 export default analysisQueue;

@@ -1,7 +1,24 @@
 version: '3.8'
 
 services:
-  # In-Memory & Distributed Cache
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: phishtank-postgres
+    environment:
+      - POSTGRES_USER=phishtank
+      - POSTGRES_PASSWORD=phishtank_secret
+      - POSTGRES_DB=phishtank
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phishtank"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: phishtank-redis
@@ -10,14 +27,27 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
 
-  # PhishTank Scalable Threat Analyzer & API Server
+  ml-engine:
+    build:
+      context: ./services/ml-engine
+      dockerfile: Dockerfile
+    container_name: phishtank-ml-engine
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
   phishtank-api:
     build:
       context: .
@@ -27,23 +57,59 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - ROLE=api
       - PORT=3000
+      - DATABASE_URL=postgresql://phishtank:phishtank_secret@postgres:5432/phishtank
       - REDIS_URL=redis://redis:6379
-      - QUEUE_CONCURRENCY=5
-      - DB_PATH=/app/data/phishtank.db
+      - ML_ENGINE_URL=http://ml-engine:8000
       - UPLOAD_DIR=/app/uploads
     volumes:
-      - sqlite_data:/app/data
       - uploads_data:/app/uploads
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
+        condition: service_healthy
+      ml-engine:
         condition: service_healthy
     restart: unless-stopped
 
+  phishtank-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["npm", "run", "worker"]
+    environment:
+      - NODE_ENV=production
+      - ROLE=worker
+      - DATABASE_URL=postgresql://phishtank:phishtank_secret@postgres:5432/phishtank
+      - REDIS_URL=redis://redis:6379
+      - ML_ENGINE_URL=http://ml-engine:8000
+      - QUEUE_CONCURRENCY=10
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml-engine:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: phishtank-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
 volumes:
+  pg_data:
   redis_data:
-    driver: local
-  sqlite_data:
-    driver: local
   uploads_data:
-    driver: local

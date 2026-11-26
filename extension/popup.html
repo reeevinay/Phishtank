@@ -301,7 +301,12 @@
     </div>
   </div>
 
-  <a href="http://localhost:3000" target="_blank" class="dashboard-link">
+  <div style="margin-top: 10px; display: flex; gap: 6px; align-items: center;">
+    <input id="backendUrlInput" type="url" placeholder="https://phishtank-ns-api.onrender.com" style="flex: 1; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px; padding: 6px 8px; font-size: 11px;" />
+    <button id="saveBackendBtn" style="background: #334155; color: #f8fafc; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer;">Save</button>
+  </div>
+
+  <a href="https://phishtank-ns-api.onrender.com" id="dashboardLink" target="_blank" class="dashboard-link">
     <span>📊</span>
     <span>Open Full SOC Dashboard</span>
   </a>

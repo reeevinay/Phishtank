@@ -1,0 +1,50 @@
+{
+  "dataset": "zefang-liu/phishing-email-dataset (80/20 held-out test, N=2000)",
+  "train_samples": 14474,
+  "test_samples": 2000,
+  "Neural-Only (Clean)": {
+    "samples": 2000,
+    "accuracy": 98.7,
+    "precision": 98.0,
+    "recall": 98.74,
+    "f1": 98.37,
+    "fpr": 1.33,
+    "roc_auc": 99.89,
+    "ece": 0.0486,
+    "brier": 0.0154
+  },
+  "PhishTank-NS (Clean)": {
+    "samples": 2000,
+    "accuracy": 98.5,
+    "precision": 97.51,
+    "recall": 98.74,
+    "f1": 98.12,
+    "fpr": 1.66,
+    "roc_auc": 99.83,
+    "ece": 0.138,
+    "brier": 0.0421,
+    "mean_ms": 1.951
+  },
+  "Neural-Only (Adversarial Stress)": {
+    "samples": 2000,
+    "accuracy": 96.25,
+    "precision": 97.87,
+    "recall": 92.56,
+    "f1": 95.14,
+    "fpr": 1.33,
+    "roc_auc": 99.53,
+    "ece": 0.081,
+    "brier": 0.0361
+  },
+  "PhishTank-NS (Adversarial Stress)": {
+    "samples": 2000,
+    "accuracy": 98.95,
+    "precision": 97.54,
+    "recall": 99.87,
+    "f1": 98.69,
+    "fpr": 1.66,
+    "roc_auc": 99.99,
+    "ece": 0.0733,
+    "brier": 0.0109
+  }
+}

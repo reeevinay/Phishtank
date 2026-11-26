@@ -1,0 +1,38 @@
+{
+  "Heuristics-Only (v1)": {
+    "accuracy": 45.0,
+    "precision": 100.0,
+    "recall": 26.67,
+    "f1": 42.11,
+    "brier": 0.571,
+    "ece": 0.62,
+    "mean_latency_ms": 0.004
+  },
+  "Neural-Only (Raw)": {
+    "accuracy": 85.0,
+    "precision": 100.0,
+    "recall": 80.0,
+    "f1": 88.89,
+    "brier": 0.1329,
+    "ece": 0.2727,
+    "mean_latency_ms": 1.908
+  },
+  "Weighted Average": {
+    "accuracy": 47.5,
+    "precision": 100.0,
+    "recall": 30.0,
+    "f1": 46.15,
+    "brier": 0.2933,
+    "ece": 0.4213,
+    "mean_latency_ms": 0.002
+  },
+  "PhishTank-NS (Ours)": {
+    "accuracy": 100.0,
+    "precision": 100.0,
+    "recall": 100.0,
+    "f1": 100.0,
+    "brier": 0.1379,
+    "ece": 0.273,
+    "mean_latency_ms": 2.928
+  }
+}

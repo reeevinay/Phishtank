@@ -3,8 +3,37 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const BACKEND_HEALTH = 'http://localhost:3000/api/v1/health';
-  const BACKEND_ANALYZE_DOM = 'http://localhost:3000/api/v1/analyze-dom';
+  const DEFAULT_BACKEND = 'https://phishtank-ns-api.onrender.com';
+  const stored = await new Promise((resolve) => {
+    try {
+      chrome.storage.sync.get(['backendUrl'], (r) => resolve(r?.backendUrl || DEFAULT_BACKEND));
+    } catch {
+      resolve(DEFAULT_BACKEND);
+    }
+  });
+  let baseUrl = String(stored).replace(/\/+$/, '');
+  let BACKEND_HEALTH = `${baseUrl}/api/v1/health`;
+  let BACKEND_ANALYZE_DOM = `${baseUrl}/api/v1/analyze-dom`;
+
+  const backendUrlInput = document.getElementById('backendUrlInput');
+  const saveBackendBtn = document.getElementById('saveBackendBtn');
+  const dashboardLink = document.getElementById('dashboardLink');
+  if (backendUrlInput) backendUrlInput.value = baseUrl;
+  if (dashboardLink) dashboardLink.href = baseUrl;
+
+  if (saveBackendBtn && backendUrlInput) {
+    saveBackendBtn.addEventListener('click', () => {
+      const next = backendUrlInput.value.trim().replace(/\/+$/, '') || DEFAULT_BACKEND;
+      chrome.storage.sync.set({ backendUrl: next }, () => {
+        baseUrl = next;
+        BACKEND_HEALTH = `${baseUrl}/api/v1/health`;
+        BACKEND_ANALYZE_DOM = `${baseUrl}/api/v1/analyze-dom`;
+        if (dashboardLink) dashboardLink.href = baseUrl;
+        saveBackendBtn.innerText = 'Saved';
+        setTimeout(() => { saveBackendBtn.innerText = 'Save'; }, 1200);
+      });
+    });
+  }
 
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');

@@ -1,11 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "PhishTank Email Threat Scanner",
-  "version": "1.0.0",
-  "description": "One-click autonomous email threat analysis for Gmail and Outlook Web.",
+  "name": "PhishTank-NS Email Threat Scanner",
+  "version": "2.0.0",
+  "description": "Neuro-Symbolic email threat, BEC, and adversarial obfuscation scanner for Gmail and Outlook Web.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "phishtank-scanner@phishtank.local"
+      "id": "phishtank-scanner@phishtank.local",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["websiteContent"]
+      }
     }
   },
   "background": {
@@ -19,6 +23,8 @@
   "host_permissions": [
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
+    "https://*.onrender.com/*",
+    "https://*.up.railway.app/*",
     "*://mail.google.com/*",
     "*://outlook.live.com/*",
     "*://outlook.office.com/*",

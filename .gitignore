@@ -1,11 +1,18 @@
 # Dependencies
 node_modules/
+frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Python / ML
+services/ml-engine/.venv/
+**/__pycache__/
+.pytest_cache/
+
 # Build outputs
 dist/
+frontend/dist/
 build/
 *.tsbuildinfo
 *.zip

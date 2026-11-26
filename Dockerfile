@@ -1,41 +1,43 @@
-# Multi-stage production Dockerfile for PhishTank
+# Multi-stage production Dockerfile for PhishTank-NS API, Worker & React SOC Dashboard
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install build tools for native C++ addons (better-sqlite3)
 RUN apk add --no-cache python3 make g++
 
-# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code and config
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci
+
 COPY tsconfig.json ./
 COPY src/ ./src/
+COPY frontend/ ./frontend/
 COPY public/ ./public/
 COPY test-samples/ ./test-samples/
 
-# Production runner stage
+RUN npm run build && cd frontend && npm run build
+
 FROM node:22-alpine AS runner
 
 WORKDIR /app
-
-# Runtime dependencies
 RUN apk add --no-cache curl
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV DB_PATH=/app/data/phishtank.db
 ENV UPLOAD_DIR=/app/uploads
 ENV QUEUE_CONCURRENCY=5
 
-# Copy built application and modules from builder
-COPY --from=builder /app ./
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/frontend/dist ./frontend/dist
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/test-samples ./test-samples
 
-# Create data and uploads mount points
 RUN mkdir -p /app/data /app/uploads && chown -R node:node /app
-
 USER node
 
 EXPOSE 3000

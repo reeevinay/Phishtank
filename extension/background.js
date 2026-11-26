@@ -4,14 +4,16 @@
  * bypassing page-level CSP and mixed-content restrictions on HTTPS sites (Gmail, Outlook).
  */
 
+const DEFAULT_BACKEND_URL = 'https://phishtank-ns-api.onrender.com';
+
 async function getBackendUrl() {
   return new Promise((resolve) => {
     try {
       chrome.storage.sync.get(['backendUrl'], (result) => {
-        resolve(result?.backendUrl || 'http://localhost:3000');
+        resolve(result?.backendUrl || DEFAULT_BACKEND_URL);
       });
     } catch {
-      resolve('http://localhost:3000');
+      resolve(DEFAULT_BACKEND_URL);
     }
   });
 }

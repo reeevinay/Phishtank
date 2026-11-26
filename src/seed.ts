@@ -70,20 +70,20 @@ const mockIncidents: IncidentRecord[] = [
   }
 ];
 
-function runSeed() {
+async function runSeed() {
   console.log('\n================================================================');
-  console.log('       🛡️  PHISHTANK EMAIL THREAT ANALYSIS - DB SEEDER  🛡️      ');
+  console.log('       🛡️  PHISHTANK-NS EMAIL THREAT ANALYSIS - DB SEEDER 🛡️      ');
   console.log('================================================================');
   console.log(`Database Location: ${DB_PATH}\n`);
 
   console.log('⏳ Inserting mock incident records...');
   for (const mock of mockIncidents) {
-    saveIncident(mock);
+    await saveIncident(mock);
     console.log(`  ✓ Saved incident: [${mock.verdict}] ${mock.id} - "${mock.subject}"`);
   }
 
   console.log('\n🔍 Verifying with getRecentIncidents(10):');
-  const recent = getRecentIncidents(10);
+  const recent = await getRecentIncidents(10);
   console.log(`Found ${recent.length} total incidents in database:\n`);
 
   recent.forEach((item, index) => {
@@ -106,7 +106,7 @@ function runSeed() {
   });
 
   console.log('\n🔍 Testing getIncidentById("inc_mal_003"):');
-  const single = getIncidentById('inc_mal_003');
+  const single = await getIncidentById('inc_mal_003');
   if (single) {
     console.log('✓ Successfully retrieved malicious incident by ID:');
     console.log(JSON.stringify({ ...single, details: parseIncidentDetails(single.details) }, null, 2));
@@ -114,8 +114,8 @@ function runSeed() {
     console.error('❌ Failed to retrieve incident by ID');
   }
 
-  closeDatabase();
+  await closeDatabase();
   console.log('\n🎉 Persistence layer verified successfully and database connection closed.\n');
 }
 
-runSeed();
+void runSeed();

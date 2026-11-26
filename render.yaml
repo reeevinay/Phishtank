@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: phishtank-ns-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PG_SSL
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: phishtank-pgvector
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: phishtank-redis
+          property: connectionString
+      - key: ML_ENGINE_URL
+        fromService:
+          type: web
+          name: phishtank-ns-ml
+          property: url
+
+  - type: web
+    name: phishtank-ns-ml
+    runtime: docker
+    dockerfilePath: ./services/ml-engine/Dockerfile
+    dockerContext: ./services/ml-engine
+    plan: free
+    healthCheckPath: /health
+
+  - type: redis
+    name: phishtank-redis
+    plan: free
+    ipAllowList: []
+
+databases:
+  - name: phishtank-pgvector
+    plan: free
+    postgresMajorVersion: "16"
