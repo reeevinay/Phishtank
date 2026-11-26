@@ -1,7 +1,7 @@
 /**
  * Packaging script for PhishTank Browser Extension (Manifest V3)
- * Compresses extension/ into dist/phishtank-extension.zip ready for upload
- * to Mozilla Add-ons (addons.mozilla.org) and Chrome Web Store.
+ * Compresses extension/ into dist/phishtank-extension.zip with POSIX forward slashes (/)
+ * required by Mozilla Add-ons (addons.mozilla.org) and Chrome Web Store.
  */
 
 const { execSync } = require('child_process');
@@ -24,9 +24,22 @@ if (fs.existsSync(zipFile)) {
 }
 
 try {
-  // Use PowerShell Compress-Archive on Windows
-  const psCommand = `powershell -NoProfile -Command "Compress-Archive -Path '${extensionDir}\\*' -DestinationPath '${zipFile}' -Force"`;
-  execSync(psCommand, { stdio: 'inherit' });
+  // Use Python zipfile to guarantee POSIX forward slashes ('/') inside the .zip archive
+  const pyScript = [
+    'import os, zipfile',
+    `ext_dir = r'''${extensionDir}'''`,
+    `out_zip = r'''${zipFile}'''`,
+    "with zipfile.ZipFile(out_zip, 'w', zipfile.ZIP_DEFLATED) as zf:",
+    '    for root, _, files in os.walk(ext_dir):',
+    '        for f in sorted(files):',
+    '            full = os.path.join(root, f)',
+    "            arc = os.path.relpath(full, ext_dir).replace('\\\\', '/')",
+    '            zf.write(full, arc)',
+    "with zipfile.ZipFile(out_zip, 'r') as zf:",
+    "    print('Archive entries:', zf.namelist())"
+  ].join('\n');
+
+  execSync(`python -c "${pyScript.replace(/"/g, '\\"')}"`, { stdio: 'inherit' });
 
   const stats = fs.statSync(zipFile);
   console.log(`\n🎉 Successfully packaged extension!`);
