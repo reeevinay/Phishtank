@@ -36,6 +36,7 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/frontend/dist ./frontend/dist
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/test-samples ./test-samples
+COPY benchmarks/hf_results.json benchmarks/results.json ./benchmarks/
 
 RUN mkdir -p /app/data /app/uploads && chown -R node:node /app
 USER node
