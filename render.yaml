@@ -19,11 +19,11 @@ services:
           type: redis
           name: phishtank-redis
           property: connectionString
-      - key: ML_ENGINE_URL
+      - key: ML_ENGINE_HOSTPORT
         fromService:
           type: web
           name: phishtank-ns-ml
-          property: url
+          property: hostport
 
   - type: web
     name: phishtank-ns-ml

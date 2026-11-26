@@ -53,7 +53,10 @@ export interface MLInferResponse {
   fallback?: boolean;
 }
 
-const ML_ENGINE_URL = process.env.ML_ENGINE_URL || 'http://localhost:8000';
+const rawHostPort = process.env.ML_ENGINE_HOSTPORT;
+const ML_ENGINE_URL =
+  process.env.ML_ENGINE_URL ||
+  (rawHostPort ? (rawHostPort.startsWith('http') ? rawHostPort : `http://${rawHostPort}`) : 'http://localhost:8000');
 
 /**
  * Calls the Python FastAPI Neuro-Symbolic ML Engine with a fast timeout.
