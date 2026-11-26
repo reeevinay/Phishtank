@@ -65,13 +65,17 @@ const ML_ENGINE_URL =
 export async function callMlEngine(payload: MLInferRequest): Promise<MLInferResponse> {
   try {
     const res = await axios.post<MLInferResponse>(`${ML_ENGINE_URL}/v1/infer`, payload, {
-      timeout: 8000
+      timeout: 20000
     });
     return res.data;
   } catch (err) {
     console.warn(`⚠️ ML Engine unreachable at ${ML_ENGINE_URL}, using local fallback:`, err instanceof Error ? err.message : err);
     return localFallbackFusion(payload);
   }
+}
+
+export function warmMlEngine(): void {
+  axios.get(`${ML_ENGINE_URL}/health`, { timeout: 15000 }).catch(() => {});
 }
 
 /**
@@ -81,15 +85,15 @@ export async function callMlEngine(payload: MLInferRequest): Promise<MLInferResp
 export function localFallbackFusion(req: MLInferRequest): MLInferResponse {
   const s = req.symbolic;
   const text = `${req.subject} ${req.plain_text}`.toLowerCase();
-  const urgency = /\b(urgent|immediately|suspended|verify|wire transfer|expires?)\b/i.test(text);
-  const creds = /\b(password|login|credential|bank|payroll|docusign|invoice)\b/i.test(text);
+  const urgency = /\b(urgent|immediately|suspended|verify|wire transfer|expires?|action required|gift card)\b/i.test(text);
+  const creds = /\b(password|login|credential|bank|routing|payroll|docusign|invoice|office\s*365)\b/i.test(text);
 
-  const mMalAuth = s.spf_fail || s.dkim_fail || s.dmarc_fail ? 0.65 : 0.03;
-  const mBenAuth = s.auth_header_present && !s.spf_fail && !s.dkim_fail ? 0.65 : 0.0;
+  const mMalAuth = s.spf_fail || s.dkim_fail || s.dmarc_fail ? 0.65 : 0.01;
+  const mBenAuth = s.auth_header_present && !s.spf_fail && !s.dkim_fail ? 0.78 : 0.35;
   const mThAuth = Math.max(0.05, 1 - mMalAuth - mBenAuth);
 
-  const mMalStruct = s.typosquatting_url || s.dangerous_attachment ? 0.8 : s.display_name_spoof || s.reply_to_mismatch ? 0.58 : 0.02;
-  const mBenStruct = mMalStruct < 0.1 ? 0.35 : 0.02;
+  const mMalStruct = s.typosquatting_url || s.dangerous_attachment ? 0.8 : s.display_name_spoof || s.reply_to_mismatch ? 0.58 : 0.01;
+  const mBenStruct = mMalStruct < 0.1 ? 0.65 : 0.02;
   const mThStruct = Math.max(0.05, 1 - mMalStruct - mBenStruct);
 
   const k = mMalAuth * mBenStruct + mBenAuth * mMalStruct;

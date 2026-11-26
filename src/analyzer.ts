@@ -342,7 +342,9 @@ export async function analyzeEmail(emlBuffer: Buffer, assignedId?: string): Prom
     }
   };
 
-  await cacheService.setEmailVerdict(emailHash, result, 3600);
+  if (!ml.fallback) {
+    await cacheService.setEmailVerdict(emailHash, result, 3600);
+  }
   return result;
 }
 
@@ -505,6 +507,8 @@ export async function analyzeDomEmail(payload: DomAnalysisPayload, assignedId?: 
     }
   };
 
-  await cacheService.setEmailVerdict(domHash, result, 3600);
+  if (!ml.fallback) {
+    await cacheService.setEmailVerdict(domHash, result, 3600);
+  }
   return result;
 }

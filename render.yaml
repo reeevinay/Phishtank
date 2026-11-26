@@ -19,6 +19,8 @@ services:
           type: redis
           name: phishtank-redis
           property: connectionString
+      - key: ML_ENGINE_URL
+        value: https://phishtank-ns-ml.onrender.com
       - key: ML_ENGINE_HOSTPORT
         fromService:
           type: web

@@ -20,6 +20,7 @@ import {
 import { analysisQueue, incidentEvents } from './queue';
 import { cacheService } from './cache';
 import { analyzeDomEmail } from './analyzer';
+import { warmMlEngine } from './mlClient';
 
 dotenv.config();
 
@@ -98,6 +99,7 @@ app.get('/metrics', async (_req: Request, res: Response) => {
 });
 
 app.get('/api/v1/health', (_req: Request, res: Response) => {
+  warmMlEngine();
   res.json({
     status: 'ok',
     service: 'PhishTank-NS Neuro-Symbolic Threat Analyzer',
@@ -317,6 +319,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🛡️  PhishTank-NS API & SOC Dashboard running at http://localhost:${PORT}`);
     console.log(`📁 Upload buffer directory: ${uploadDir}`);
+    warmMlEngine();
   });
 }
 
