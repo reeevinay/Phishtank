@@ -85,7 +85,8 @@ Dempster-Shafer Evidence Theory~\cite{dempster1967upper,shafer1976mathematical} 
 
 \begin{table}[htbp]
 \caption{Comparative Evaluation of Phishing Defense Approaches}
-\begin{center}
+\centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{>{\raggedright\arraybackslash}p{1.8cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{2.0cm}}
 \toprule
 \textbf{Criterion} & \textbf{Legacy Rule Gateways} & \textbf{Pure Neural / LLM Scanners} & \textbf{PhishTank-NS (Production)} \\
@@ -96,9 +97,9 @@ Prompt Injection & N/A & Vulnerable to override text & \textbf{Guard flags as MA
 Uncertainty Modeling & Static score addition & Uncalibrated softmax & \textbf{D-S $[\text{Bel}(M), \text{Pl}(M)]$ + $m(\Theta)$} \\
 Campaign Clustering & Exact hash blocklist & None & \textbf{\texttt{pgvector} HNSW + 2-hop graph} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:comparison}
-\end{center}
 \end{table}
 
 \section{System Architecture and Data Modeling}
@@ -108,7 +109,8 @@ PhishTank-NS decouples webmail/UI intake, asynchronous queuing, ML inference, an
 
 \begin{table}[htbp]
 \caption{PhishTank-NS Technology Stack and Deployment Layers}
-\begin{center}
+\centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{>{\raggedright\arraybackslash}p{2.1cm}>{\raggedright\arraybackslash}p{5.9cm}}
 \toprule
 \textbf{System Layer} & \textbf{Verified Technologies and Runtime Role} \\
@@ -118,9 +120,9 @@ API \& Queue (Render) & Node.js~22, Express~5, BullMQ~\cite{bullmq2024}, Redis~7
 ML Engine (Render) & Python FastAPI, BeautifulSoup4, Scikit-Learn~\cite{pedregosa2011scikit}, NumPy, Dempster-Shafer \\
 Persistence (Cloud) & PostgreSQL~16 + \texttt{pgvector} HNSW~\cite{pgvector2024} (SQLite WAL local dev fallback) \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:stack}
-\end{center}
 \end{table}
 
 \subsection{Persistence Schemas and Threat Provenance Graph}
@@ -128,7 +130,8 @@ Operational records and graph entities are persisted across four PostgreSQL tabl
 
 \begin{table}[htbp]
 \caption{PostgreSQL + \texttt{pgvector} Tables and Integrity Rules}
-\begin{center}
+\centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{3.3cm}}
 \toprule
 \textbf{Table} & \textbf{Primary Fields} & \textbf{Integrity / Index Rule} \\
@@ -138,9 +141,9 @@ Operational records and graph entities are persisted across four PostgreSQL tabl
 \texttt{threat\_nodes} & \texttt{id}, \texttt{node\_type}, \texttt{label}, \texttt{risk\_score} & Monotonic max risk score update \\
 \texttt{threat\_edges} & \texttt{source\_id}, \texttt{target\_id}, \texttt{relation}, \texttt{weight} & Foreign keys with CASCADE; 2-hop traversal \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:schema}
-\end{center}
 \end{table}
 
 \subsection{Visibility-Aware Adversarial De-obfuscation}
@@ -190,7 +193,9 @@ Table~IV reports the multi-slice ablation study, and Table~V reports the held-ou
 
 \begin{table}[htbp]
 \caption{Multi-Slice Ablation Results ($N=40$ Benchmark)}
-\begin{center}
+\centering
+\setlength{\tabcolsep}{4pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{System} & \textbf{Acc (\%)} & \textbf{Prec (\%)} & \textbf{Rec (\%)} & \textbf{F1 (\%)} & \textbf{ECE} & \textbf{Lat (ms)} \\
@@ -200,14 +205,16 @@ Neural-Only (Raw) & 85.00 & 100.00 & 80.00 & 88.89 & 0.2727 & 1.908 \\
 Weighted Average & 47.50 & 100.00 & 30.00 & 46.15 & 0.4213 & 0.002 \\
 \textbf{PhishTank-NS (Ours)} & \textbf{100.00} & \textbf{100.00} & \textbf{100.00} & \textbf{100.00} & \textbf{0.2730} & \textbf{2.928} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:ablation}
-\end{center}
 \end{table}
 
 \begin{table}[htbp]
 \caption{Held-Out HuggingFace Evaluation ($N=2{,}000$ Unseen Emails)}
-\begin{center}
+\centering
+\setlength{\tabcolsep}{4pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Configuration} & \textbf{Acc (\%)} & \textbf{Rec (\%)} & \textbf{F1 (\%)} & \textbf{AUC (\%)} & \textbf{ECE} \\
@@ -217,9 +224,9 @@ PhishTank-NS (Clean) & 98.50 & 98.74 & 98.12 & 99.83 & 0.1380 \\
 Neural-Only (Adv. Stress) & 96.25 & 92.56 & 95.14 & 99.53 & 0.0810 \\
 \textbf{PhishTank-NS (Adv. Stress)} & \textbf{98.95} & \textbf{99.87} & \textbf{98.69} & \textbf{99.99} & \textbf{0.0733} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:hf_eval}
-\end{center}
 \end{table}
 
 \begin{figure}[htbp]
@@ -244,7 +251,8 @@ Automated verification combines GitHub Actions CI (\texttt{tsc}, Vitest, Vite bu
 
 \begin{table}[htbp]
 \caption{Live Cloud Deployment and Verification Matrix}
-\begin{center}
+\centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{3.0cm}}
 \toprule
 \textbf{Verified Module} & \textbf{Test Condition Executed} & \textbf{Observed Outcome} \\
@@ -254,9 +262,9 @@ Unit \& Integration & Run \texttt{pytest} (4 tests) \& Vitest (4 tests) & 8/8 te
 HTTP Load Test & 150 concurrent requests ($c=20$) & \textbf{443.12 req/sec}, 0 errors, $p_{50}=21.71$~ms, $p_{95}=171.04$~ms \\
 Firefox Extension & Run \texttt{web-ext lint} + scan live Gmail & 0 errors, 0 warnings; incidents synced to Postgres via SSE \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \label{tab:verification}
-\end{center}
 \end{table}
 
 \subsection{Operational Trade-Offs and Current Limitations}
