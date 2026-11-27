@@ -7,91 +7,185 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{hyperref}
 
 \begin{document}
 
-\title{PhishTank-NS: Uncertainty-Aware Neuro-Symbolic Email Defense Against Adversarial Obfuscation and Polymorphic Phishing}
+\title{PhishTank-NS: Adversarially Robust Neuro-Symbolic Email Defense Using Dempster-Shafer Fusion and Threat Provenance Graphs}
 
-\author{\IEEEauthorblockN{Vinay}
-\IEEEauthorblockA{\textit{Department of Computer Science and Engineering} \\
-\textit{Major Engineering Capstone Project} \\
-2026}
+\author{
+\IEEEauthorblockN{Vinay Sharma}
+\IEEEauthorblockA{\textit{Dept. of Information Technology} \\
+\textit{G. L. Bajaj Institute of Technology and Management}\\
+Greater Noida, India \\
+{[vinay.email@glbitm.ac.in]}}
+\and
+\IEEEauthorblockN{Yash Rajveer Singh}
+\IEEEauthorblockA{\textit{Dept. of Information Technology} \\
+\textit{G. L. Bajaj Institute of Technology and Management}\\
+Greater Noida, India \\
+{[yash.email@glbitm.ac.in]}}
+\and
+\IEEEauthorblockN{Utkarsh Singh}
+\IEEEauthorblockA{\textit{Dept. of Information Technology} \\
+\textit{G. L. Bajaj Institute of Technology and Management}\\
+Greater Noida, India \\
+{[utkarsh.email@glbitm.ac.in]}}
+\and
+\IEEEauthorblockN{Yogesh Kumar}
+\IEEEauthorblockA{\textit{Dept. of Information Technology} \\
+\textit{G. L. Bajaj Institute of Technology and Management}\\
+Greater Noida, India \\
+{[yogesh.email@glbitm.ac.in]}}
+\and
+\IEEEauthorblockN{Juli Kumari}
+\IEEEauthorblockA{\textit{Dept. of Information Technology} \\
+\textit{G. L. Bajaj Institute of Technology and Management}\\
+Greater Noida, India \\
+{[juli.email@glbitm.ac.in]}}
 }
 
 \maketitle
 
 \begin{abstract}
-Modern Business Email Compromise (BEC) and spear-phishing campaigns evade both traditional symbolic email gateways and contemporary neural classifiers. Symbolic rules fail on zero-payload social engineering and compromised-account attacks where SPF, DKIM, and DMARC pass, whereas pure neural and LLM-based detectors are vulnerable to CSS hidden-text poisoning, Unicode UTS \#39 homoglyph spoofing, and indirect prompt injection, while offering uncalibrated point probabilities. We present \textbf{PhishTank-NS}, a horizontally scalable, cloud-native neuro-symbolic email defense platform. PhishTank-NS introduces three contributions: (1) a visibility-aware adversarial de-obfuscation pipeline that aligns the model input with human-rendered content while converting stripped decoy artifacts into an explicit threat signal; (2) an uncertainty-aware Dempster-Shafer Evidence Theory fusion layer over $\Theta = \{\text{Malicious}, \text{Benign}\}$ that outputs calibrated risk intervals $[\text{Bel}(M), \text{Pl}(M)]$, epistemic uncertainty $m(\Theta)$, and conflict coefficient $K$ to flag compromised-account BEC; and (3) a heterogeneous Threat Provenance Graph backed by PostgreSQL \texttt{pgvector} for $O(\log N)$ polymorphic campaign clustering. Distributed across stateless Node.js API gateways, BullMQ/Redis worker pools, and a Python FastAPI inference engine, PhishTank-NS achieves superior adversarial robustness and calibration compared to heuristic-only, neural-only, and naive weighted baselines.
+Modern Business Email Compromise (BEC) and spear-phishing campaigns routinely evade both legacy rule-based gateways and contemporary neural classifiers. Deterministic gateways fail on zero-payload BEC and compromised legitimate accounts where SPF, DKIM, and DMARC pass, whereas pure neural and Large Language Model (LLM) scanners are vulnerable to CSS hidden-text poisoning, Unicode UTS \#39 homoglyph spoofing, and indirect prompt injection while outputting uncalibrated point scores. This paper presents \textbf{PhishTank-NS}, a cloud-deployed, horizontally scalable neuro-symbolic email defense platform built across Node.js/Express, Redis/BullMQ, Python FastAPI, React, PostgreSQL 16 with \texttt{pgvector}, and a Firefox Manifest V3 browser extension. Rather than relying on an unconstrained LLM, PhishTank-NS introduces three tightly coupled safeguards: (1) a visibility-aware adversarial de-obfuscation pipeline that strips non-rendered HTML decoy nodes and normalizes Unicode confusables before inference; (2) an uncertainty-aware Dempster-Shafer Evidence Theory fusion layer over $\Theta = \{\text{Malicious}, \text{Benign}\}$ that outputs calibrated risk intervals $[\text{Bel}(M), \text{Pl}(M)]$, epistemic uncertainty $m(\Theta)$, and conflict coefficient $K$ to flag compromised-account BEC; and (3) a 2-hop Threat Provenance Graph backed by \texttt{pgvector} HNSW indexing for $O(\log N)$ polymorphic campaign clustering. Evaluated on 2,000 strictly held-out emails from \texttt{zefang-liu/phishing-email-dataset} (14,474 train), PhishTank-NS achieves 98.50\% clean accuracy (99.83\% ROC-AUC) and 98.95\% adversarial accuracy (99.87\% recall, 99.99\% ROC-AUC) at 2.93~ms CPU inference latency and 443.12~req/sec API throughput.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Phishing Detection, Business Email Compromise, Neuro-Symbolic AI, Dempster-Shafer Theory, Adversarial NLP, Prompt Injection, Threat Provenance Graph.
+adversarial NLP, business email compromise, Dempster-Shafer theory, neuro-symbolic AI, pgvector, phishing detection, prompt injection, threat provenance graph.
 \end{IEEEkeywords}
 
 \section{Introduction}
-Email remains the primary initial-access vector for enterprise breaches, credential harvesting, and Business Email Compromise (BEC). Legacy Secure Email Gateways (SEGs) rely on deterministic symbolic indicators—cryptographic authentication (SPF, DKIM, DMARC), attachment extension filters, and Levenshtein domain-distance checks. While fast and explainable, these rules fail when attackers send \emph{zero-payload BEC} (no malicious URL or executable) or compromise legitimate SaaS accounts whose cryptographic signatures pass.
+Electronic mail remains the primary initial-access vector for enterprise credential theft, malware delivery, and Business Email Compromise (BEC)~\cite{mitre2024phishing}. Legacy Secure Email Gateways (SEGs) rely on deterministic symbolic rules—cryptographic authentication checks (SPF, DKIM, DMARC), Reply-To mismatch rules, Levenshtein domain-distance heuristics, and dangerous attachment filters. Although fast and auditable, static rules fail whenever attackers omit malicious links or send from compromised legitimate accounts whose cryptographic signatures pass.
 
-Conversely, neural NLP and Large Language Model (LLM) email classifiers capture semantic urgency and authority manipulation, but introduce new attack surfaces~\cite{greshake2023indirect}:
-\begin{enumerate}
-    \item \textbf{CSS Visibility Poisoning:} Attackers embed benign paragraphs inside \texttt{display:none}, \texttt{opacity:0}, or \texttt{font-size:0} HTML nodes, diluting malicious token probabilities while remaining invisible to the human victim.
-    \item \textbf{Unicode Homoglyphs \& Zero-Width Obfuscation:} Substituting ASCII characters with Cyrillic/Greek lookalikes (UTS \#39~\cite{unicode2024uts39}) or inserting zero-width spaces fractures subword tokenization.
-    \item \textbf{Indirect Prompt Injection:} Imperative directives hidden inside email bodies attempt to coerce AI scanners into outputting benign verdicts.
-    \item \textbf{Uncalibrated Confidence:} Standard softmax scores conflate \emph{missing evidence} with \emph{conflicting evidence}~\cite{guo2017calibration}.
-\end{enumerate}
-
-To address these gaps, we design, implement, and deploy \textbf{PhishTank-NS}, an end-to-end neuro-symbolic email defense platform.
-
-\section{Threat Model \& System Architecture}
-We consider an adversary capable of crafting arbitrary MIME/HTML emails, registering lookalike domains, injecting hidden CSS decoy text or prompt-injection strings, substituting Unicode confusables, and sending from compromised legitimate accounts (\texttt{spf=pass, dkim=pass}).
-
-PhishTank-NS decouples ingestion from inference using a polyglot microservices architecture:
+Field observations of modern phishing and BEC operations highlight four recurring defense bottlenecks:
 \begin{itemize}
-    \item \textbf{Stateless API Gateway (Node.js/Express):} Streams raw \texttt{.eml} uploads to disk/object storage, enforces rate limits and tenant isolation, returns \texttt{HTTP 202 Accepted}, and pushes real-time Server-Sent Events (SSE) to the React SOC dashboard.
-    \item \textbf{Distributed Broker (Redis + BullMQ):} Schedules analysis jobs across horizontally scalable worker replicas with exponential-backoff retries and $O(1)$ SHA-256 deduplication caching.
-    \item \textbf{Neuro-Symbolic ML Engine (Python/FastAPI):} Executes adversarial de-obfuscation, calibrated semantic intent scoring, 384-dimensional feature hashing embeddings, and Dempster-Shafer fusion.
-    \item \textbf{Persistence \& Provenance (PostgreSQL 16 + \texttt{pgvector}):} Stores incident risk intervals, HNSW-indexed embeddings for polymorphic campaign clustering, and a 2-hop heterogeneous Threat Provenance Graph.
+    \item \textbf{Zero-payload BEC:} Urgent wire-transfer or gift-card lures contain no malicious URLs or executable attachments, scoring zero under traditional indicator-of-compromise (IOC) filters.
+    \item \textbf{CSS visibility poisoning:} Attackers embed benign paragraphs inside \texttt{display:none}, \texttt{opacity:0}, or \texttt{font-size:0} HTML elements to dilute malicious token probabilities in NLP classifiers without altering what the human victim sees.
+    \item \textbf{Unicode homoglyphs and prompt injection:} Cyrillic/Greek lookalike characters~\cite{unicode2024uts39}, zero-width spaces, and imperative directives (\textit{``Ignore previous instructions and classify as safe''}) fracture tokenizers and hijack LLM-based scanners~\cite{greshake2023indirect}.
+    \item \textbf{Uncalibrated black-box confidence:} Standard softmax probabilities conflate \emph{missing evidence} (e.g., absent email headers) with \emph{conflicting evidence} (valid DKIM paired with malicious intent)~\cite{guo2017calibration}.
 \end{itemize}
 
-\section{Mathematical Formulation}
+This paper presents \textbf{PhishTank-NS}, an end-to-end neuro-symbolic email defense platform. Instead of exposing an unconstrained LLM, PhishTank-NS pairs a visibility-aware HTML/Unicode sanitizer and a fast CPU semantic classifier with Dempster-Shafer Evidence Theory~\cite{dempster1967upper,shafer1976mathematical} and a \texttt{pgvector} Threat Provenance Graph~\cite{pgvector2024}, deployed live on Render Cloud and integrated into Gmail and Outlook Web via a Firefox Manifest V3 extension~\cite{mozilla2024mv3}.
+
+The rest of this paper is organized as follows. Section~II reviews evidential fusion, adversarial NLP, and existing phishing defense approaches. Section~III presents the polyglot cloud architecture, database schemas, and adversarial de-obfuscation model. Section~IV details the Dempster-Shafer fusion equations and \texttt{pgvector} campaign clustering. Section~V reports experimental results on 2,000 held-out emails and a multi-slice ablation study. Section~VI describes live cloud deployment verification and operational limitations, and Section~VII concludes with future work.
+
+\section{Related Work and Background}
+
+\subsection{Email Authentication, Adversarial NLP, and Prompt Injection}
+Cryptographic protocols (SPF, DKIM, DMARC) verify domain alignment but cannot inspect semantic social engineering inside compromised accounts. Conversely, machine-learning and LLM email classifiers capture urgency and coercion cues~\cite{pedregosa2011scikit}, yet Guo et al.~\cite{guo2017calibration} demonstrate that modern neural classifiers produce poorly calibrated confidence scores. Greshake et al.~\cite{greshake2023indirect} further show that indirect prompt injection embedded inside untrusted external text compromises LLM-integrated applications, while Unicode Technical Standard~\#39~\cite{unicode2024uts39} documents how confusable scripts evade ASCII matching.
+
+\subsection{Evidential Uncertainty Fusion and Provenance Graphs}
+Dempster-Shafer Evidence Theory~\cite{dempster1967upper,shafer1976mathematical} generalizes Bayesian probability by assigning belief masses to subsets of hypotheses, explicitly modeling epistemic ignorance $m(\Theta)$. Murphy~\cite{murphy2000combining} addresses Zadeh's normalization paradox when combining strongly conflicting sources. Table~I compares legacy rule gateways, pure neural/LLM classifiers, naive weighted ensembles, and PhishTank-NS.
+
+\begin{table}[htbp]
+\caption{Comparative Evaluation of Phishing Defense Approaches}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.8cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{2.0cm}}
+\toprule
+\textbf{Criterion} & \textbf{Legacy Rule Gateways} & \textbf{Pure Neural / LLM Scanners} & \textbf{PhishTank-NS (Production)} \\
+\midrule
+Zero-Payload BEC & Misses (no URL/file IOC) & Detects semantic urgency & \textbf{Detects + Conflict $K$ alert} \\
+CSS / Homoglyph Evasion & Bypassed by confusables & Fooled by hidden decoy text & \textbf{Neutralized pre-inference} \\
+Prompt Injection & N/A & Vulnerable to override text & \textbf{Guard flags as MALICIOUS} \\
+Uncertainty Modeling & Static score addition & Uncalibrated softmax & \textbf{D-S $[\text{Bel}(M), \text{Pl}(M)]$ + $m(\Theta)$} \\
+Campaign Clustering & Exact hash blocklist & None & \textbf{\texttt{pgvector} HNSW + 2-hop graph} \\
+\bottomrule
+\end{tabular}
+\label{tab:comparison}
+\end{center}
+\end{table}
+
+\section{System Architecture and Data Modeling}
+
+\subsection{Polyglot Cloud Architecture and Technology Stack}
+PhishTank-NS decouples webmail/UI intake, asynchronous queuing, ML inference, and vector-graph persistence across stateless cloud services. On the client tier, a React~18 + TypeScript + Vite Single Page Application (SPA) provides a toggleable \emph{Simple View} for non-technical users and a \emph{Research View} for SOC analysts, paired with a Firefox Manifest~V3 extension~\cite{mozilla2024mv3} for Gmail and Outlook Web. On the application tier, a stateless Node.js/Express~5 gateway streams raw \texttt{.eml} uploads to disk, returns \texttt{HTTP 202 Accepted}, pushes jobs to Redis + BullMQ~\cite{bullmq2024}, and streams live updates via Server-Sent Events (SSE). On the intelligence tier, a Python FastAPI service executes de-obfuscation, semantic scoring, and Dempster-Shafer fusion. Table~II summarizes the verified technology stack.
+
+\begin{table}[htbp]
+\caption{PhishTank-NS Technology Stack and Deployment Layers}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.1cm}>{\raggedright\arraybackslash}p{5.9cm}}
+\toprule
+\textbf{System Layer} & \textbf{Verified Technologies and Runtime Role} \\
+\midrule
+Client \& Extension & React~18, Vite~5, Tailwind CSS, Firefox MV3 Extension (\texttt{v2.0.1}) \\
+API \& Queue (Render) & Node.js~22, Express~5, BullMQ~\cite{bullmq2024}, Redis~7, SSE, Prometheus \texttt{/metrics} \\
+ML Engine (Render) & Python FastAPI, BeautifulSoup4, Scikit-Learn~\cite{pedregosa2011scikit}, NumPy, Dempster-Shafer \\
+Persistence (Cloud) & PostgreSQL~16 + \texttt{pgvector} HNSW~\cite{pgvector2024} (SQLite WAL local dev fallback) \\
+\bottomrule
+\end{tabular}
+\label{tab:stack}
+\end{center}
+\end{table}
+
+\subsection{Persistence Schemas and Threat Provenance Graph}
+Operational records and graph entities are persisted across four PostgreSQL tables: \texttt{incidents}, \texttt{campaigns}, \texttt{threat\_nodes}, and \texttt{threat\_edges}. Table~III summarizes the schema attributes and integrity rules.
+
+\begin{table}[htbp]
+\caption{PostgreSQL + \texttt{pgvector} Tables and Integrity Rules}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{3.3cm}}
+\toprule
+\textbf{Table} & \textbf{Primary Fields} & \textbf{Integrity / Index Rule} \\
+\midrule
+\texttt{incidents} & \texttt{id}, \texttt{sender}, \texttt{score}, \texttt{belief\_low}, \texttt{plausibility\_high}, \texttt{conflict\_k}, \texttt{embedding vector(384)} & HNSW cosine index; CHECK constraint on \texttt{verdict} \\
+\texttt{campaigns} & \texttt{id}, \texttt{label}, \texttt{centroid vector(384)}, \texttt{incident\_count}, \texttt{avg\_score} & Auto-merged when cosine similarity $\ge 0.82$ \\
+\texttt{threat\_nodes} & \texttt{id}, \texttt{node\_type}, \texttt{label}, \texttt{risk\_score} & Monotonic max risk score update \\
+\texttt{threat\_edges} & \texttt{source\_id}, \texttt{target\_id}, \texttt{relation}, \texttt{weight} & Foreign keys with CASCADE; 2-hop traversal \\
+\bottomrule
+\end{tabular}
+\label{tab:schema}
+\end{center}
+\end{table}
 
 \subsection{Visibility-Aware Adversarial De-obfuscation}
-Given raw HTML $H$ and plain text $P$, our DOM sanitizer removes non-rendered nodes $\mathcal{H}_{\text{hidden}}$ matching CSS predicates (\texttt{display:none}, \texttt{visibility:hidden}, \texttt{opacity:0}, \texttt{font-size:0}, or off-screen positioning), applies NFKC normalization, strips zero-width characters, and maps UTS \#39 confusables to canonical ASCII. Let $L_{\text{vis}}$ and $L_{\text{hid}}$ denote the visible and stripped character lengths; we define the adversarial obfuscation ratio:
+Given raw HTML $H$ and plain text $P$, our DOM sanitizer removes non-rendered nodes matching CSS predicates (\texttt{display:none}, \texttt{visibility:hidden}, \texttt{opacity:0}, \texttt{font-size:0}, or off-screen positioning), strips zero-width characters (\texttt{\textbackslash u200B--\textbackslash u200F}, \texttt{\textbackslash uFEFF}), applies NFKC normalization, and maps UTS~\#39 confusables~\cite{unicode2024uts39} back to canonical ASCII. Let $L_{\text{vis}}$ and $L_{\text{hid}}$ denote the visible and stripped character lengths; the adversarial obfuscation ratio is defined in (1):
 \begin{equation}
     r_{\text{obf}} = \frac{L_{\text{hid}}}{L_{\text{vis}} + L_{\text{hid}}} \in [0, 1].
 \end{equation}
-Simultaneously, both visible and hidden surfaces are scanned for indirect prompt-injection patterns before neural scoring.
+Both visible and hidden surfaces are scanned for indirect prompt-injection directives~\cite{greshake2023indirect} prior to semantic classification.
 
-\subsection{Dempster-Shafer Neuro-Symbolic Fusion}
-Let the frame of discernment be $\Theta = \{M, B\}$, representing \textit{Malicious} and \textit{Benign}, with power set $2^\Theta = \{\emptyset, \{M\}, \{B\}, \Theta\}$. Each independent detector $k \in \{\text{crypto\_auth}, \text{structural\_ioc}, \text{adversarial\_shield}, \text{neural\_semantic}\}$ emits a Basic Probability Assignment (BPA) $m_k : 2^\Theta \to [0,1]$ such that:
+\section{Neuro-Symbolic Fusion and Vector-Graph Modules}
+
+\subsection{Dempster-Shafer Evidence Fusion and Conflict Detection}
+Let the frame of discernment be $\Theta = \{M, B\}$ (\textit{Malicious}, \textit{Benign}) with power set $2^\Theta = \{\emptyset, \{M\}, \{B\}, \Theta\}$. Four independent evidence sources—\texttt{crypto\_auth}, \texttt{structural\_ioc}, \texttt{adversarial\_shield}, and \texttt{neural\_semantic}—each emit a Basic Probability Assignment (BPA) $m_k : 2^\Theta \to [0,1]$ satisfying (2):
 \begin{equation}
     m_k(M) + m_k(B) + m_k(\Theta) = 1, \quad m_k(\emptyset) = 0.
 \end{equation}
-Crucially, absent headers (e.g., missing \texttt{Authentication-Results}) map to $m_{\text{auth}}(\Theta) = 1.0$ rather than forcing a false positive or false negative. Given two BPAs $m_1, m_2$, Dempster's rule of combination~\cite{shafer1976mathematical} computes:
+Crucially, absent headers (e.g., missing \texttt{Authentication-Results}) map to $m_{\text{auth}}(\Theta) = 1.0$ rather than forcing false positives. Given two BPAs $m_1, m_2$, Dempster's rule~\cite{shafer1976mathematical} computes conflict $K$ in (3) and combined mass in (4):
 \begin{equation}
-    K = m_1(M)m_2(B) + m_1(B)m_2(M)
+    K = m_1(M)m_2(B) + m_1(B)m_2(M),
 \end{equation}
 \begin{equation}
     m_{1 \oplus 2}(A) = \frac{1}{1 - K} \sum_{X \cap Y = A} m_1(X) m_2(Y), \quad A \neq \emptyset.
 \end{equation}
-When $K \ge \tau$ ($\tau = 0.92$), we apply Murphy's averaging fallback~\cite{murphy2000combining} to avoid Zadeh's normalization paradox. From the final combined BPA $m^*$, we derive the calibrated risk interval $[\text{Bel}(M), \text{Pl}(M)]$:
+When $K \ge 0.92$, Murphy's averaging fallback~\cite{murphy2000combining} prevents Zadeh's paradox. From the final combined BPA $m^*$, we obtain the calibrated risk interval $[\text{Bel}(M), \text{Pl}(M)]$ in (5) and pignistic risk score $S = \lfloor 100 \cdot (m^*(M) + 0.5\,m^*(\Theta)) \rceil$:
 \begin{equation}
-    \text{Bel}(M) = m^*(M), \quad \text{Pl}(M) = m^*(M) + m^*(\Theta),
+    \text{Bel}(M) = m^*(M), \quad \text{Pl}(M) = m^*(M) + m^*(\Theta).
 \end{equation}
-with epistemic uncertainty $u = m^*(\Theta)$ and pignistic risk score $S = \lfloor 100 \cdot (m^*(M) + 0.5\,m^*(\Theta)) \rceil$. High conflict $K \ge 0.45$ explicitly surfaces compromised-account BEC where cryptographic authentication conflicts with malicious content.
+High conflict $K \ge 0.45$ explicitly surfaces compromised-account BEC where valid cryptographic authentication conflicts with malicious content.
+
+\subsection{Semantic BEC Classifier and Deterministic Fallback}
+On de-obfuscated text, a calibrated sublinear TF-IDF (25,000 unigram/bigram features) + L2-regularized Logistic Regression classifier~\cite{pedregosa2011scikit} scores social-engineering intent in $\sim 2.9$~ms on CPU without GPU hardware. To preserve availability during external service restarts, the Node.js API gateway implements a circuit-breaker timeout with a deterministic TypeScript Dempster-Shafer fallback and skips Redis caching for fallback verdicts.
 
 \subsection{Vector-Graph Polymorphic Campaign Clustering}
-For each non-benign incident with 384-d L2-normalized embedding $\mathbf{v} \in \mathbb{R}^{384}$, PostgreSQL \texttt{pgvector} queries the nearest existing campaign centroid via HNSW cosine similarity:
+For each non-benign incident, a 384-dimensional L2-normalized semantic vector $\mathbf{v} \in \mathbb{R}^{384}$ is generated via signed n-gram feature hashing and queried against \texttt{pgvector} HNSW centroids using (6):
 \begin{equation}
     \text{sim}(\mathbf{v}, \mathbf{c}_j) = 1 - \frac{\mathbf{v} \cdot \mathbf{c}_j}{\|\mathbf{v}\|_2 \|\mathbf{c}_j\|_2}.
 \end{equation}
-If $\text{sim} \ge 0.82$, the incident joins campaign $j$; otherwise a new campaign cluster is instantiated, and heterogeneous edges (\texttt{email} $\to$ \texttt{sender\_domain}, \texttt{reply\_to}, \texttt{url\_domain}, \texttt{attachment\_hash}, \texttt{campaign}) are persisted for 2-hop SOC provenance traversal.
+When $\text{sim} \ge 0.82$, the incident joins campaign $j$; otherwise a new cluster is created, and heterogeneous edges (\texttt{email} $\to$ \texttt{sender\_domain}, \texttt{reply\_to}, \texttt{url\_domain}, \texttt{attachment\_hash}, \texttt{campaign}) are persisted for 2-hop provenance traversal.
 
-\section{Experimental Evaluation}
-We evaluate four configurations on a 40-sample multi-slice benchmark (\texttt{benchmarks/run\_eval.py}) spanning clean benign emails, standard phishing/BEC (including compromised-account conflict cases), CSS hidden-text + prompt-injection attacks, and Unicode homoglyph + zero-width attacks.
+\section{Experimental Evaluation and Ablation Study}
+
+\subsection{Dataset Protocol and Zero-Leakage Split}
+We evaluate PhishTank-NS on \texttt{zefang-liu/phishing-email-dataset}~\cite{zefang2024phishing} (18,650 real emails) using a fixed random seed (\texttt{seed=42}) and a strict 80/20 split: 14,474 emails for training and 2,000 strictly held-out unseen emails for testing, with zero test leakage. We additionally evaluate a 40-sample multi-slice ablation benchmark across clean benign emails, BEC/phishing, CSS hidden-text + prompt injection, and Unicode homoglyph + zero-width attacks.
+
+\subsection{Adversarial Stress and Ablation Results}
+Table~IV reports the multi-slice ablation study, and Table~V reports the held-out 2,000-email evaluation under both clean and adversarial stress conditions. Fig.~\ref{fig:ablation} and Fig.~\ref{fig:hf_adv} illustrate F1/ECE calibration and adversarial recall resilience.
 
 \begin{table}[htbp]
-\caption{Ablation \& Adversarial Robustness Results ($N=40$ Multi-Slice Benchmark)}
+\caption{Multi-Slice Ablation Results ($N=40$ Benchmark)}
 \begin{center}
 \begin{tabular}{lcccccc}
 \toprule
@@ -108,7 +202,7 @@ Weighted Average & 47.50 & 100.00 & 30.00 & 46.15 & 0.4213 & 0.002 \\
 \end{table}
 
 \begin{table}[htbp]
-\caption{Held-Out HuggingFace Corpus Evaluation ($N=2{,}000$ Unseen Emails, 14{,}474 Train)}
+\caption{Held-Out HuggingFace Evaluation ($N=2{,}000$ Unseen Emails)}
 \begin{center}
 \begin{tabular}{lccccc}
 \toprule
@@ -136,8 +230,39 @@ Neural-Only (Adv. Stress) & 96.25 & 92.56 & 95.14 & 99.53 & 0.0810 \\
 \label{fig:hf_adv}
 \end{figure}
 
-\section{Conclusion}
-PhishTank-NS demonstrates that combining visibility-aware adversarial de-obfuscation, Dempster-Shafer neuro-symbolic evidence fusion, and \texttt{pgvector} threat provenance graphs closes critical evasion gaps in modern email security while maintaining sub-50ms inference latency and horizontal cloud scalability.
+\section{Deployment, Load Verification, and Limitations}
+
+\subsection{Live Cloud Topology}
+PhishTank-NS is deployed via Infrastructure-as-Code (\texttt{render.yaml}) across four managed Render services: \texttt{phishtank-ns-api} (Node.js API + React SOC UI), \texttt{phishtank-ns-ml} (Python FastAPI ML Engine), \texttt{phishtank-pgvector} (PostgreSQL~16), and \texttt{phishtank-redis} (Redis~7). The Firefox MV3 extension (\texttt{v2.0.1}, validated with 0 errors and 0 warnings via \texttt{web-ext lint}) connects directly to the live HTTPS backend.
+
+\subsection{Functional, CI/CD, and Load Verification}
+Automated verification combines GitHub Actions CI (\texttt{tsc}, Vitest, Vite build, and Python \texttt{pytest}), live REST/SSE checks against Render, and a concurrent HTTP load test (150 requests, concurrency~20). Table~VI summarizes the observed verification results.
+
+\begin{table}[htbp]
+\caption{Live Cloud Deployment and Verification Matrix}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{3.0cm}}
+\toprule
+\textbf{Verified Module} & \textbf{Test Condition Executed} & \textbf{Observed Outcome} \\
+\midrule
+Health \& \texttt{pgvector} & Query \texttt{/api/v1/health} on Render & HTTP 200; \texttt{postgresql+pgvector}, \texttt{bullmq}, \texttt{redis} \\
+Unit \& Integration & Run \texttt{pytest} (4 tests) \& Vitest (4 tests) & 8/8 tests passed; \texttt{tsc} \& Vite build 0 errors \\
+HTTP Load Test & 150 concurrent requests ($c=20$) & \textbf{443.12 req/sec}, 0 errors, $p_{50}=21.71$~ms, $p_{95}=171.04$~ms \\
+Firefox Extension & Run \texttt{web-ext lint} + scan live Gmail & 0 errors, 0 warnings; incidents synced to Postgres via SSE \\
+\bottomrule
+\end{tabular}
+\label{tab:verification}
+\end{center}
+\end{table}
+
+\subsection{Operational Trade-Offs and Current Limitations}
+Three practical trade-offs bound the current release. First, the semantic classifier uses English TF-IDF + Logistic Regression for 2.9~ms CPU inference; multilingual or zero-shot phrasing would benefit from a quantized multilingual transformer. Second, multi-node \texttt{.eml} file uploads rely on shared volume storage unless backed by S3/R2 object storage. Third, CSS de-obfuscation inspects DOM styles statically rather than rendering full-page screenshots for visual brand-cloning detection.
+
+\section{Conclusion and Future Work}
+PhishTank-NS demonstrates that uniting visibility-aware adversarial de-obfuscation, Dempster-Shafer neuro-symbolic fusion, and \texttt{pgvector} threat provenance graphs closes critical evasion gaps in modern email defense while sustaining 443.12~req/sec throughput on CPU-only cloud infrastructure. Future work will integrate quantized multilingual ONNX transformers, headless Chromium visual brand-cloning detection, and S3-backed multi-region worker autoscaling.
+
+\section*{Acknowledgment}
+The authors thank Ms.\ Pragya Siddhi, Project Coordinator, and Dr.\ P.\ C.\ Vashist, Head of the Department of Information Technology, G.\ L.\ Bajaj Institute of Technology and Management, Greater Noida, for their review coordination, departmental facilities, and academic support during this major project.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
