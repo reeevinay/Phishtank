@@ -245,46 +245,70 @@
       advisory = 'Caution: Multiple anomaly indicators or external free mail spoofing detected.';
     }
 
-    const rulesHtml = rules.length > 0
-      ? rules.map(r => `<span class="phishtank-rule-tag">${r}</span>`).join('')
-      : '<span class="phishtank-rule-tag">ALL_CHECKS_PASSED</span>';
-
-    const reasonsHtml = reasons.length > 0
-      ? `<ul class="phishtank-reasons-list">${reasons.map(r => `<li>• ${r}</li>`).join('')}</ul>`
-      : '';
-
     banner.className = `phishtank-security-banner ${bannerClass}`;
-    banner.innerHTML = `
-      <div class="phishtank-banner-header">
-        <div class="phishtank-banner-title">
-          <span>${icon}</span>
-          <span>${titleText}</span>
-          <span class="phishtank-badge ${badgeClass}">${verdict}</span>
-        </div>
-        <button class="phishtank-dismiss-btn" title="Dismiss Banner" id="phishtankDismissBtn">&times;</button>
-      </div>
 
-      <p style="margin: 4px 0 8px 0; font-size: 13px; font-weight: 500;">${advisory}</p>
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'phishtank-banner-header';
 
-      <div style="margin: 6px 0;">${rulesHtml}</div>
-      ${reasonsHtml}
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'phishtank-banner-title';
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = icon;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = titleText;
+    const badgeSpan = document.createElement('span');
+    badgeSpan.className = `phishtank-badge ${badgeClass}`;
+    badgeSpan.textContent = verdict;
+    titleWrap.append(iconSpan, textSpan, badgeSpan);
 
-      <div class="phishtank-banner-actions">
-        <a href="http://localhost:3000" target="_blank" class="phishtank-action-btn">
-          View in SOC Dashboard &rarr;
-        </a>
-        <span style="font-size: 11px; opacity: 0.7; margin-left: auto;">
-          Incident ID: ${incident.id || 'N/A'}
-        </span>
-      </div>
-    `;
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'phishtank-dismiss-btn';
+    dismissBtn.title = 'Dismiss Banner';
+    dismissBtn.textContent = '×';
+    dismissBtn.addEventListener('click', () => banner.remove());
+    headerDiv.append(titleWrap, dismissBtn);
+
+    const advP = document.createElement('p');
+    advP.style.cssText = 'margin: 4px 0 8px 0; font-size: 13px; font-weight: 500;';
+    advP.textContent = advisory;
+
+    const rulesDiv = document.createElement('div');
+    rulesDiv.style.cssText = 'margin: 6px 0;';
+    const ruleItems = rules.length > 0 ? rules : ['ALL_CHECKS_PASSED'];
+    ruleItems.forEach((r) => {
+      const tag = document.createElement('span');
+      tag.className = 'phishtank-rule-tag';
+      tag.textContent = r;
+      rulesDiv.appendChild(tag);
+    });
+
+    banner.append(headerDiv, advP, rulesDiv);
+
+    if (reasons.length > 0) {
+      const ul = document.createElement('ul');
+      ul.className = 'phishtank-reasons-list';
+      reasons.forEach((r) => {
+        const li = document.createElement('li');
+        li.textContent = `• ${r}`;
+        ul.appendChild(li);
+      });
+      banner.appendChild(ul);
+    }
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'phishtank-banner-actions';
+    const link = document.createElement('a');
+    link.href = 'https://phishtank-ns-api.onrender.com';
+    link.target = '_blank';
+    link.className = 'phishtank-action-btn';
+    link.textContent = 'View in SOC Dashboard →';
+    const incSpan = document.createElement('span');
+    incSpan.style.cssText = 'font-size: 11px; opacity: 0.7; margin-left: auto;';
+    incSpan.textContent = `Incident ID: ${incident.id || 'N/A'}`;
+    actionsDiv.append(link, incSpan);
+    banner.appendChild(actionsDiv);
 
     bodyAnchor.parentNode.insertBefore(banner, bodyAnchor);
-
-    const dismissBtn = banner.querySelector('#phishtankDismissBtn');
-    if (dismissBtn) {
-      dismissBtn.addEventListener('click', () => banner.remove());
-    }
 
     // Smooth scroll into view
     banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

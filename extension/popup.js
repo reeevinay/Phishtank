@@ -179,18 +179,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       verdictBadge.classList.add('clean-theme');
     }
 
-    // Rules tags
+    // Rules tags (safe DOM creation, zero innerHTML)
+    rulesList.replaceChildren();
     if (rules.length === 0) {
-      rulesList.innerHTML = '<span class="rule-chip" style="color:#34d399">ALL_CHECKS_PASSED</span>';
+      const chip = document.createElement('span');
+      chip.className = 'rule-chip';
+      chip.style.color = '#34d399';
+      chip.textContent = 'ALL_CHECKS_PASSED';
+      rulesList.appendChild(chip);
     } else {
-      rulesList.innerHTML = rules.map(r => `<span class="rule-chip">${r}</span>`).join('');
+      rules.forEach((r) => {
+        const chip = document.createElement('span');
+        chip.className = 'rule-chip';
+        chip.textContent = r;
+        rulesList.appendChild(chip);
+      });
     }
 
-    // Reasons
+    // Reasons (safe DOM creation, zero innerHTML)
+    reasonsUl.replaceChildren();
     if (reasons.length === 0) {
-      reasonsUl.innerHTML = '<li>✓ No suspicious indicators detected. Email verified clean.</li>';
+      const li = document.createElement('li');
+      li.textContent = '✓ No suspicious indicators detected. Email verified clean.';
+      reasonsUl.appendChild(li);
     } else {
-      reasonsUl.innerHTML = reasons.map(r => `<li>${r}</li>`).join('');
+      reasons.forEach((r) => {
+        const li = document.createElement('li');
+        li.textContent = r;
+        reasonsUl.appendChild(li);
+      });
     }
   }
 });
