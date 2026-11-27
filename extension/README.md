@@ -24,10 +24,10 @@ The **PhishTank Firefox Extension** enables one-click email threat analysis dire
 
 You don't need a real phishing email in your personal inbox to test the extension:
 
-1. Ensure the PhishTank API server is running on `http://localhost:3000` (`npm start`).
+1. The extension defaults to the live cloud backend at `https://phishtank-ns-api.onrender.com` (or you can point it to `http://localhost:3000` in the popup).
 2. Open the mock webmail simulation page in Firefox:
    ```text
-   http://localhost:3000/mock-webmail.html
+   https://phishtank-ns-api.onrender.com/mock-webmail.html
    ```
 3. Notice the **"🛡️ Report / Scan with PhishTank"** button injected in the toolbar (or floating at bottom-right).
 4. Click the button or click the extension icon in Firefox's toolbar to open the popup and click **"Scan Current Email"**.
