@@ -8,12 +8,16 @@
       "id": "phishtank-scanner@phishtank.local",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["websiteContent"]
+        "required": [
+          "websiteContent"
+        ]
       }
     }
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "permissions": [
     "activeTab",
@@ -47,8 +51,12 @@
         "*://localhost/*",
         "http://localhost:3000/*"
       ],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],
