@@ -6,8 +6,15 @@
 [![BullMQ + Redis](https://img.shields.io/badge/BullMQ-Redis_Distributed-DC382D?logo=redis&logoColor=white)](https://docs.bullmq.io/)
 [![React + Vite](https://img.shields.io/badge/React-Vite_SOC_UI-61DAFB?logo=react&logoColor=black)](https://vitejs.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Multi_Service-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render_Cloud-10B981?logo=render&logoColor=white)](https://phishtank-ns-api.onrender.com)
 
 **PhishTank-NS** is a horizontally scalable, polyglot **Neuro-Symbolic Email Defense Platform** built for real-time phishing, Business Email Compromise (BEC), and adversarial email attack mitigation, accompanied by a reproducible benchmark suite and an **IEEEtran research paper** ([paper/main.tex](paper/main.tex)).
+
+### 🌐 Live Cloud Deployment
+- **SOC Dashboard & API**: https://phishtank-ns-api.onrender.com
+- **Mock Webmail Test Page**: https://phishtank-ns-api.onrender.com/mock-webmail.html
+- **Python ML Engine Swagger Docs**: https://phishtank-ns-ml.onrender.com/docs
+*(Note: Hosted on Render free tier — the first request after inactivity may take ~30–50s to wake up.)*
 
 ---
 
@@ -65,7 +72,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 npm start
 ```
 
-Open **http://localhost:3000** and click **"Simulate Adversarial BEC"** or upload `.eml` files from `test-samples/`.
+Open **https://phishtank-ns-api.onrender.com** (or `http://localhost:3000` locally) and click **"Scan Custom Email"** or upload `.eml` files from `test-samples/`.
 
 ---
 
