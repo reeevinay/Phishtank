@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishTank-NS Email Threat Scanner",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Neuro-Symbolic email threat, BEC, and adversarial obfuscation scanner for Gmail and Outlook Web.",
   "browser_specific_settings": {
     "gecko": {
@@ -12,6 +12,9 @@
           "websiteContent"
         ]
       }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
     }
   },
   "background": {
